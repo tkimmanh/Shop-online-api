@@ -19,7 +19,7 @@
     "dotenv": "^16.4.5",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
-    "express": "^4.18.2",
+    "express": "^4.18.3",
     "mongoose": "^8.2.1",
     "prettier": "^3.2.5",
     "slugify": "^1.6.6"
