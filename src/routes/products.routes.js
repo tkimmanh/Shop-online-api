@@ -1,4 +1,5 @@
 import { Router } from 'express'
+
 import {
   createProductController,
   deleteProductController,
@@ -6,13 +7,14 @@ import {
   productDetailsController,
   updateProductController
 } from '~/controllers/products.controller'
+import { customUploadMiddleware } from '~/middlewares/uploadImage.middlewares'
 
 const routerProducts = Router()
 
 routerProducts.get('/', getAllProductController)
 routerProducts.get('/:id', productDetailsController)
-routerProducts.post('/', createProductController)
-routerProducts.put('/:id', updateProductController)
+routerProducts.post('/', customUploadMiddleware, createProductController)
+routerProducts.put('/:id', customUploadMiddleware, updateProductController)
 routerProducts.delete('/:id', deleteProductController)
 
 export default routerProducts

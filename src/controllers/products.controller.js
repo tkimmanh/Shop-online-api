@@ -2,51 +2,101 @@ import slugify from 'slugify'
 import HTTP_STATUS from '~/constants/httpStatus'
 import { PRODUCTS_MESSAGE } from '~/constants/message'
 import Products from '~/models/Products.model'
+import { deleteImageOnCloudinary } from '~/utils/cloudinary'
 
 export const createProductController = async (req, res) => {
   try {
-    if (!req.body) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        message: 'Request body is missing'
-      })
-    }
-
-    const { title, description, price, quantity } = req.body
-    if (!title || !description || !price || !quantity) {
+    const { title, description, price, quantity, category } = req.body
+    if (!title || !description || !price || !quantity || !category) {
       return res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json({
         message: PRODUCTS_MESSAGE.PRODUCTS_IS_REQUIRED
       })
     }
-    if (req.body.title) {
-      req.body.slug = slugify(title)
-    }
-    const newProduct = await Products.create(req.body)
-    if (newProduct) {
-      res.status(HTTP_STATUS.OK).json({
-        message: PRODUCTS_MESSAGE.PRODUCTS_CREATED,
-        newProduct
-      })
-    }
+
+    const thumbnail = req.files.thumbnail
+      ? {
+          url: req.files.thumbnail[0].path,
+          public_id: req.files.thumbnail[0].filename
+        }
+      : null
+
+    const images = req.files.images
+      ? req.files.images.map((file) => ({
+          url: file.path,
+          public_id: file.filename
+        }))
+      : []
+
+    const newProduct = await Products.create({
+      ...req.body,
+      slug: slugify(title),
+      thumbnail,
+      images
+    })
+
+    return res.status(HTTP_STATUS.OK).json({
+      message: PRODUCTS_MESSAGE.PRODUCTS_CREATED,
+      newProduct
+    })
   } catch (error) {
+    console.error(error)
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: PRODUCTS_MESSAGE.PRODUCTS_CREATED_FAILED
     })
   }
 }
+
 export const updateProductController = async (req, res) => {
   const { id } = req.params
-
   if (!id) {
     return res.status(HTTP_STATUS.NOT_FOUND).json({
       message: PRODUCTS_MESSAGE.PRODUCTS_NOT_FOUND
     })
   }
+
   try {
+    const productToUpdate = await Products.findById(id)
+    if (!productToUpdate) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
+        message: PRODUCTS_MESSAGE.PRODUCTS_NOT_FOUND
+      })
+    }
+    if (req.files?.thumbnail && productToUpdate.thumbnail?.public_id) {
+      await deleteImageOnCloudinary(productToUpdate?.thumbnail.public_id)
+    }
+    if (req.files?.images && productToUpdate.images?.length > 0) {
+      const deletePromises = productToUpdate.images.map((image) => {
+        if (image.public_id) {
+          return deleteImageOnCloudinary(image?.public_id)
+        }
+        return Promise.resolve()
+      })
+      await Promise.all(deletePromises)
+    }
+
     if (req.body.title) {
       req.body.slug = slugify(req.body.title)
     }
-    const updateProduct = await Products.findOneAndUpdate({ _id: id }, req.body, { new: true })
 
+    const updatedThumbnail = req.files?.thumbnail
+      ? {
+          url: req.files.thumbnail[0].path,
+          public_id: req.files.thumbnail[0].filename
+        }
+      : productToUpdate.thumbnail
+
+    const updatedImages = req.files?.images
+      ? req.files.images.map((file) => ({
+          url: file.path,
+          public_id: file.filename
+        }))
+      : productToUpdate.images
+
+    const updateProduct = await Products.findOneAndUpdate(
+      { _id: id },
+      { ...req.body, thumbnail: updatedThumbnail, images: updatedImages },
+      { new: true }
+    )
     if (updateProduct) {
       return res.status(HTTP_STATUS.OK).json({
         message: PRODUCTS_MESSAGE.PRODUCT_UPDATED,
@@ -69,12 +119,31 @@ export const deleteProductController = async (req, res) => {
     })
   }
   try {
-    const deleteProduct = await Products.findOneAndDelete(id)
+    const product = await Products.findById(id)
+
+    if (!product) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
+        message: PRODUCTS_MESSAGE.PRODUCTS_NOT_FOUND
+      })
+    }
+
+    if (product.thumbnail && product.thumbnail.public_id) {
+      await deleteImageOnCloudinary(product.thumbnail.public_id)
+    }
+
+    if (product.images && product.images.length > 0) {
+      for (const image of product.images) {
+        await deleteImageOnCloudinary(image.public_id)
+      }
+    }
+
+    await Products.findByIdAndDelete(id)
+
     res.status(HTTP_STATUS.OK).json({
-      message: PRODUCTS_MESSAGE.PRODUCT_DELETED,
-      deleteProduct
+      message: PRODUCTS_MESSAGE.PRODUCT_DELETED
     })
   } catch (error) {
+    console.log('error:', error)
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: PRODUCTS_MESSAGE.PRODUCT_DELETED_FAILED
     })
@@ -90,7 +159,12 @@ export const productDetailsController = async (req, res) => {
   }
   try {
     const findProduct = await Products.findById(id).populate('category', '-createdAt -updatedAt -__v')
-    res.status(HTTP_STATUS.OK).json({
+    if (!findProduct) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({
+        message: PRODUCTS_MESSAGE.PRODUCTS_NOT_FOUND
+      })
+    }
+    return res.status(HTTP_STATUS.OK).json({
       message: PRODUCTS_MESSAGE.PRODUCT_GET_DETAILS,
       findProduct
     })
@@ -100,6 +174,7 @@ export const productDetailsController = async (req, res) => {
     })
   }
 }
+
 export const getAllProductController = async (req, res) => {
   try {
     const queryObj = { ...req.query }
