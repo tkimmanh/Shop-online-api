@@ -89,7 +89,7 @@ export const productDetailsController = async (req, res) => {
     })
   }
   try {
-    const findProduct = await Products.findById(id)
+    const findProduct = await Products.findById(id).populate('category', '-createdAt -updatedAt -__v')
     res.status(HTTP_STATUS.OK).json({
       message: PRODUCTS_MESSAGE.PRODUCT_GET_DETAILS,
       findProduct
@@ -100,9 +100,7 @@ export const productDetailsController = async (req, res) => {
     })
   }
 }
-
 export const getAllProductController = async (req, res) => {
-  //gte trở lên , lte trở xuống
   try {
     const queryObj = { ...req.query }
     const excludeFields = ['page', 'sort', 'limit', 'fields']
@@ -110,10 +108,9 @@ export const getAllProductController = async (req, res) => {
     let queryStr = JSON.stringify(queryObj)
     queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`)
 
-    let query = Products.find(JSON.parse(queryStr))
+    let query = Products.find(JSON.parse(queryStr)).populate('category', '-createdAt -updatedAt -__v')
 
     // Sorting
-
     if (req.query.sort) {
       const sortBy = req.query.sort.split(',').join(' ')
       query = query.sort(sortBy)
@@ -121,8 +118,7 @@ export const getAllProductController = async (req, res) => {
       query = query.sort('-createdAt')
     }
 
-    // limiting the fields
-
+    // Limiting the fields
     if (req.query.fields) {
       const fields = req.query.fields.split(',').join(' ')
       query = query.select(fields)
@@ -130,20 +126,12 @@ export const getAllProductController = async (req, res) => {
       query = query.select('-__v')
     }
 
-    // pagination
-
+    // Pagination
     const page = req.query.page
     const limit = req.query.limit
     const skip = (page - 1) * limit
     query = query.skip(skip).limit(limit)
-    if (req.query.page) {
-      const productCount = await Products.countDocuments()
-      if (skip >= productCount) {
-        return res.status(HTTP_STATUS.NOT_FOUND).json({
-          message: PRODUCTS_MESSAGE.PRODUCT_PAGE_NOT_FOUND
-        })
-      }
-    }
+
     const product = await query
     res.status(HTTP_STATUS.OK).json({
       message: PRODUCTS_MESSAGE.PRODUCTS_GET_ALL,

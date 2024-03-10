@@ -4,6 +4,8 @@ import cors from 'cors'
 
 import connect from './config/dbConnect'
 import routerProducts from './routes/products.routes'
+import routerCateogries from './routes/categories.routes'
+import routerUpload from './routes/uploadImage.routes'
 
 config()
 const app = express()
@@ -13,6 +15,8 @@ app.use(express.json())
 app.use(cors())
 app.use(express.urlencoded({ extended: true }))
 app.use('/products', routerProducts)
+app.use('/category', routerCateogries)
+app.use('/upload', routerUpload)
 app.listen(process.env.LOCAL_PORT, () => {
   console.log(`Server is running on PORT ${process.env.LOCAL_PORT}`)
 })

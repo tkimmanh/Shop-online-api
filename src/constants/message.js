@@ -16,3 +16,17 @@ export const PRODUCTS_MESSAGE = {
   PRODUCT_PAGE_NOT_FOUND: 'Trang này không tồn tại',
   PRODUCTS_UPDATE_ERROR: 'Cập nhật sản phẩm thất bại'
 }
+export const CATEGORY_MESSAGE = {
+  CATEGORY_IS_REQUIRED: 'Đầu vào bị thiếu hoặc không hợp lệ',
+  CATEGORY_IS_NOT_FOUND: 'Danh mục không tồn tại',
+  CATEGORY_GET_ALL: 'Danh sách tất cả danh mục',
+  CATEGORY_GET_ALL_FAILED: 'Gọi danh sách tất cả danh mục thất bại',
+  CATEGORY_GET_ONE: 'Gọi một danh mục thành công',
+  CATEGORY_GET_ONE_FAILED: 'Danh mục không tồn tại',
+  CATEGORY_CREATED: 'Thêm mới dạnh mục thành công',
+  CATEGORY_UPDATED: 'Cập nhật danh mục thành công',
+  CATEGORY_DELETED: 'Xóa danh mục thành công',
+  CATEGORY_CREATE_FAILED: 'Thêm mới dạnh mục thất bại',
+  CATEGORY_UPDATE_FAILED: 'Cập nhật dạnh mục thất bại',
+  CATEGORY_DELETE_FAILED: 'Xóa danh mục mới dạnh mục thất bại'
+}
