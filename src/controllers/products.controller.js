@@ -2,7 +2,10 @@ import mongoose from 'mongoose'
 import slugify from 'slugify'
 import HTTP_STATUS from '~/constants/httpStatus'
 import { PRODUCTS_MESSAGE } from '~/constants/message'
+import Categories from '~/models/Categories.model'
+import Colors from '~/models/Colors.models'
 import Products from '~/models/Products.model'
+import Sizes from '~/models/Sizes.model'
 import { deleteImageOnCloudinary } from '~/utils/cloudinary'
 
 export const createProductController = async (req, res) => {
@@ -191,44 +194,84 @@ export const productDetailsController = async (req, res) => {
 
 export const getAllProductController = async (req, res) => {
   try {
-    const queryObj = { ...req.query }
-    const excludeFields = ['page', 'sort', 'limit', 'fields']
-    excludeFields.forEach((el) => delete queryObj[el])
-    let queryStr = JSON.stringify(queryObj)
-    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`)
+    const { title, sort, priceFrom, priceTo, price, color, sizes, category } = req.query
+    const page = parseInt(req.query.page, 10) || 1
+    const limit = parseInt(req.query.limit, 10) || 10
 
-    let query = Products.find(JSON.parse(queryStr))
-      .populate('category', '-createdAt -updatedAt -__v')
-      .populate('colors', '-createdAt -updatedAt -__v')
-      .populate('sizes', '-createdAt -updatedAt -__v')
-
-    // Sorting
-    if (req.query.sort) {
-      const sortBy = req.query.sort.split(',').join(' ')
-      query = query.sort(sortBy)
-    } else {
-      query = query.sort('-createdAt')
-    }
-
-    // Limiting the fields
-    if (req.query.fields) {
-      const fields = req.query.fields.split(',').join(' ')
-      query = query.select(fields)
-    } else {
-      query = query.select('-__v')
-    }
-
-    // Pagination
-    const page = req.query.page
-    const limit = req.query.limit
+    // phân trang page=1&limit=10
     const skip = (page - 1) * limit
+
+    let query = Products.find()
+    // Tìm kiếm theo title : products?title=name
+    if (title) {
+      query = query.where('title', new RegExp(req.query.title, 'i'))
+    }
+
+    // Sắp xếp //mới nhất : products?sort=newest  //cũ nhất : products?sort=oldest
+    if (sort) {
+      if (sort === 'newest') {
+        query = query.sort('-createdAt')
+      } else if (sort === 'oldest') {
+        query = query.sort('createdAt')
+      }
+    }
+
+    // Lọc theo khoảng giá :  products?priceFrom=100000&priceTo=500000
+    if (priceFrom || priceTo) {
+      query = query
+        .where('price')
+        .gte(priceFrom || 0)
+        .lte(priceTo || Number.MAX_SAFE_INTEGER)
+    }
+
+    // Lọc theo giá cao nhất hoặc thấp nhất : /products?price=min , /products?price=max
+    if (price) {
+      if (price === 'min') {
+        query = query.sort('price')
+      } else if (price === 'max') {
+        query = query.sort('-price')
+      }
+    }
+
+    // Lọc theo màu sắc : products?color=red,blue
+    if (color) {
+      const colorNames = color.split(',').map((c) => new RegExp(c.trim(), 'i'))
+      const colors = await Colors.find({ name: { $in: colorNames } })
+      const colorIds = colors.map((c) => c._id)
+      query = query.where('colors').in(colorIds)
+    }
+
+    // Lọc theo kích cỡ : ?sizes=M,L
+    if (sizes) {
+      const sizeNames = sizes.split(',').map((s) => new RegExp(s.trim(), 'i'))
+      const sizesDocs = await Sizes.find({ name: { $in: sizeNames } })
+      const sizeIds = sizesDocs.map((s) => s._id)
+      query = query.where('sizes').in(sizeIds)
+    }
+
+    // Lọc theo danh mục ?category=categoryname
+    if (category) {
+      const categoryDoc = await Categories.findOne({ title: new RegExp(req.query.category, 'i') })
+      if (categoryDoc) {
+        query = query.where('category').equals(categoryDoc._id)
+      }
+    }
+    // query kết hợp : products?priceFrom=100000&priceTo=500000&color=red,green&price=min
+
     query = query.skip(skip).limit(limit)
 
-    const product = await query
+    const products = await query
+      .populate('category', 'title')
+      .populate('colors', 'name')
+      .populate('sizes', 'name')
+      .exec()
+
+    const counts = await Products.countDocuments(query.getFilter())
 
     res.status(HTTP_STATUS.OK).json({
       message: PRODUCTS_MESSAGE.PRODUCTS_GET_ALL,
-      product
+      products,
+      counts
     })
   } catch (error) {
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({

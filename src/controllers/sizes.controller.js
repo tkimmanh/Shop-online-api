@@ -18,6 +18,7 @@ export const createSizeController = async (req, res) => {
     }
     return false
   } catch (error) {
+    console.log("error:", error)
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: VARRIANTS_MESSAGE.VARRIANTS_CREATED_FAILED
     })

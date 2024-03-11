@@ -7,10 +7,6 @@ const sizesSchema = new Schema(
       required: true,
       unique: true,
       trim: true
-    },
-    quatity: {
-      type: Number,
-      required: true
     }
   },
   { timestamps: true }

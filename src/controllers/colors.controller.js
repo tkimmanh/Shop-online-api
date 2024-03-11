@@ -36,7 +36,7 @@ export const updateColorController = async (req, res) => {
     })
   }
   try {
-    const updatedColor = await Colors.findByIdAndUpdate(id, req.body, {
+    const updatedColor = await Colors.findByIdAndUpdate({ _id: id }, req.body, {
       new: true
     })
     if (updatedColor) {

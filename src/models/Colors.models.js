@@ -10,10 +10,6 @@ const colorsSchema = new Schema(
     },
     color_code: {
       type: String
-    },
-    quantity: {
-      type: Number,
-      required: true
     }
   },
   { timestamps: true }
