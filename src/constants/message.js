@@ -44,3 +44,12 @@ export const VARRIANTS_MESSAGE = {
   VARRIANTS_DELETED_FAILED: 'Xóa thất bại',
   VARRIANTS_NOT_FOUND: 'Không tìm thấy biến thể'
 }
+export const USER_MESSAGE = {
+  EMAIL_ALREADY_EXISTS: 'Email đã được đăng ký',
+  VALIDATE_PASSWORD: 'Mật khẩu không khớp',
+  VALIDATE_EMAIL: 'Email không hợp lệ',
+  USER_CREATED: 'Đăng ký tài khoản thành công',
+  USER_CREATE_FAILED: 'Đăng ký thất bại',
+  USER_NOT_FOUND: 'Người dùng không tồn tại',
+  USER_LOGIN_SUCCESS: 'Đăng nhập thành công!'
+}

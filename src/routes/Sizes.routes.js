@@ -6,13 +6,14 @@ import {
   getallSizeController,
   updateSizeController
 } from '~/controllers/sizes.controller'
+import { authenticateToken, isAdmin } from '~/middlewares/auth.middlewares'
 
 const routerSizes = Router()
 
 routerSizes.get('/', getallSizeController)
-routerSizes.post('/', createSizeController)
 routerSizes.get('/:id', getSizeController)
-routerSizes.put('/:id', updateSizeController)
-routerSizes.delete('/:id', deleteSizeController)
+routerSizes.post('/', authenticateToken, isAdmin, createSizeController)
+routerSizes.put('/:id', authenticateToken, isAdmin, updateSizeController)
+routerSizes.delete('/:id', authenticateToken, isAdmin, deleteSizeController)
 
 export default routerSizes
