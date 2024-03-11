@@ -27,8 +27,7 @@ const productsSchema = new Schema(
       required: true
     },
     quantity: {
-      type: Number,
-      required: true
+      type: Number
     },
     sold: {
       type: Number,
@@ -47,7 +46,18 @@ const productsSchema = new Schema(
         url: String
       }
     ],
-    color: []
+    colors: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Colors'
+      }
+    ],
+    sizes: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Sizes'
+      }
+    ]
   },
   { timestamps: true }
 )

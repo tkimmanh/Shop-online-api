@@ -1,3 +1,4 @@
+import mongoose from 'mongoose'
 import slugify from 'slugify'
 import HTTP_STATUS from '~/constants/httpStatus'
 import { PRODUCTS_MESSAGE } from '~/constants/message'
@@ -6,8 +7,16 @@ import { deleteImageOnCloudinary } from '~/utils/cloudinary'
 
 export const createProductController = async (req, res) => {
   try {
-    const { title, description, price, quantity, category } = req.body
-    if (!title || !description || !price || !quantity || !category) {
+    const { title, description, price, category } = req.body
+    let { colors, sizes } = req.body
+
+    colors = colors?.split(',')
+    sizes = sizes?.split(',')
+
+    colors = colors?.map((color) => new mongoose.Types.ObjectId(color))
+    sizes = sizes?.map((size) => new mongoose.Types.ObjectId(size))
+
+    if (!title || !description || !price || !category) {
       return res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json({
         message: PRODUCTS_MESSAGE.PRODUCTS_IS_REQUIRED
       })
@@ -31,7 +40,9 @@ export const createProductController = async (req, res) => {
       ...req.body,
       slug: slugify(title),
       thumbnail,
-      images
+      images,
+      colors,
+      sizes
     })
 
     return res.status(HTTP_STATUS.OK).json({
@@ -183,7 +194,10 @@ export const getAllProductController = async (req, res) => {
     let queryStr = JSON.stringify(queryObj)
     queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`)
 
-    let query = Products.find(JSON.parse(queryStr)).populate('category', '-createdAt -updatedAt -__v')
+    let query = Products.find(JSON.parse(queryStr))
+      .populate('category', '-createdAt -updatedAt -__v')
+      .populate('colors', '-createdAt -updatedAt -__v')
+      .populate('sizes', '-createdAt -updatedAt -__v')
 
     // Sorting
     if (req.query.sort) {
@@ -208,6 +222,7 @@ export const getAllProductController = async (req, res) => {
     query = query.skip(skip).limit(limit)
 
     const product = await query
+
     res.status(HTTP_STATUS.OK).json({
       message: PRODUCTS_MESSAGE.PRODUCTS_GET_ALL,
       product
@@ -216,5 +231,24 @@ export const getAllProductController = async (req, res) => {
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: PRODUCTS_MESSAGE.PRODUCT_GET_ERROR
     })
+  }
+}
+export const updateProductOptions = async (req, res) => {
+  const { productId } = req.params
+  const { colors, sizes } = req.body
+
+  try {
+    // Tìm sản phẩm cần cập nhật
+    const product = await Products.findById(productId)
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' })
+    }
+
+    product.options = { colors, sizes }
+    await product.save()
+
+    res.status(200).json({ message: 'Product updated with new options', product })
+  } catch (error) {
+    res.status(500).json({ message: 'Internal server error', error })
   }
 }

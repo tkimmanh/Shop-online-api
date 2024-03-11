@@ -5,6 +5,8 @@ import cors from 'cors'
 import connect from './config/dbConnect'
 import routerProducts from './routes/products.routes'
 import routerCateogries from './routes/categories.routes'
+import routerSizes from './routes/Sizes.routes'
+import routerColors from './routes/colors.routes'
 
 config()
 const app = express()
@@ -15,6 +17,9 @@ app.use(cors())
 app.use(express.urlencoded({ extended: true }))
 app.use('/products', routerProducts)
 app.use('/category', routerCateogries)
+app.use('/sizes', routerSizes)
+app.use('/colors', routerColors)
+
 app.listen(process.env.LOCAL_PORT, () => {
   console.log(`Server is running on PORT ${process.env.LOCAL_PORT}`)
 })

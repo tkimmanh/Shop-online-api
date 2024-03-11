@@ -30,3 +30,17 @@ export const CATEGORY_MESSAGE = {
   CATEGORY_UPDATE_FAILED: 'Cập nhật dạnh mục thất bại',
   CATEGORY_DELETE_FAILED: 'Xóa danh mục mới dạnh mục thất bại'
 }
+export const VARRIANTS_MESSAGE = {
+  VARRIANTS_NAME_IS_REQUIRED: 'Đầu vào bị thiếu hoặc không hợp lệ',
+  VARRIANTS_GET_ALL: 'Danh sách các biến thể',
+  VARRIANTS_GET_ONE: 'Gọi biến thể thành công',
+  VARRIANTS_GET_ALL_FAILED: 'Gọi danh sách biến thể thất bại',
+  VARRIANTS_GET_ONE_FAILED: 'Gọi biến thể thất bại',
+  VARRIANTS_CREATED: 'Thêm mới thành công',
+  VARRIANTS_CREATED_FAILED: 'Thêm mới thất bại',
+  VARRIANTS_UPDATED: 'Cập nhật thành công',
+  VARRIANTS_UPDATED_FAILED: 'Cập nhật thất bại',
+  VARRIANTS_DELETED: 'Xóa thành công',
+  VARRIANTS_DELETED_FAILED: 'Xóa thất bại',
+  VARRIANTS_NOT_FOUND: 'Không tìm thấy biến thể'
+}

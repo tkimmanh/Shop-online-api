@@ -5,7 +5,8 @@ import {
   deleteProductController,
   getAllProductController,
   productDetailsController,
-  updateProductController
+  updateProductController,
+  updateProductOptions
 } from '~/controllers/products.controller'
 import { customUploadMiddleware } from '~/middlewares/uploadImage.middlewares'
 
@@ -16,5 +17,6 @@ routerProducts.get('/:id', productDetailsController)
 routerProducts.post('/', customUploadMiddleware, createProductController)
 routerProducts.put('/:id', customUploadMiddleware, updateProductController)
 routerProducts.delete('/:id', deleteProductController)
+routerProducts.put('/:productId/options', updateProductOptions)
 
 export default routerProducts

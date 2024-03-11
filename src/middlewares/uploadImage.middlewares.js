@@ -9,7 +9,7 @@ export const customUploadMiddleware = (req, res, next) => {
   ])
   uploadHandler(req, res, function (err) {
     if (err instanceof multer.MulterError) {
-      return res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json({ message: err.message })
+      return res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json({ message: 'Lỗi upload ảnh' })
     } else if (err) {
       return res.status(500).json({ message: 'Server error during file upload' })
     }
