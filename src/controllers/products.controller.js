@@ -169,7 +169,10 @@ export const productDetailsController = async (req, res) => {
     })
   }
   try {
-    const findProduct = await Products.findById(id).populate('category', '-createdAt -updatedAt -__v')
+    const findProduct = await Products.findById(id)
+      .populate('category', '-createdAt -updatedAt -__v')
+      .populate('colors', '-createdAt -updatedAt -__v')
+      .populate('sizes', '-createdAt -updatedAt -__v')
     if (!findProduct) {
       res.status(HTTP_STATUS.NOT_FOUND).json({
         message: PRODUCTS_MESSAGE.PRODUCTS_NOT_FOUND
