@@ -1,6 +1,9 @@
 import bcrypt from 'bcrypt'
 import HTTP_STATUS from '~/constants/httpStatus'
 import { PRODUCTS_MESSAGE, USER_MESSAGE } from '~/constants/message'
+import Colors from '~/models/Colors.models'
+import Products from '~/models/Products.model'
+import Sizes from '~/models/Sizes.model'
 import Users from '~/models/Users.model'
 import { generateToken } from '~/utils/jwt'
 
@@ -58,6 +61,7 @@ export const createUserController = async (req, res) => {
     })
   }
 }
+
 export const signInController = async (req, res) => {
   try {
     const { email, password } = req.body
@@ -106,5 +110,165 @@ export const signInController = async (req, res) => {
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: error.message
     })
+  }
+}
+
+export const addToCartController = async (req, res) => {
+  const { _id } = req.user
+  let { product_id, color_id, size_id } = req.body
+
+  try {
+    const product = await Products.findById(product_id).populate(['colors', 'sizes'])
+    const user = await Users.findById(_id)
+
+    if (!user) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
+    }
+
+    // không chọn lấy size và color đầu tiên của sản phẩm
+    if (!color_id && product.colors.length >= 1) {
+      color_id = product.colors[0]._id.toString()
+    }
+    if (!size_id && product.sizes.length >= 1) {
+      color_id = product.sizes[0]._id.toString()
+    }
+
+    // Kiểm tra xem sản phẩm với màu sắc và kích thước đã chọn đã tồn tại trong giỏ hàng chưa
+    let itemIndex = user.cart.findIndex(
+      (item) =>
+        item?.product?.toString() === product_id &&
+        (!color_id || item?.color?.toString() === color_id) &&
+        (!size_id || item?.size?.toString() === size_id)
+    )
+
+    // Nếu đã tồn tại, tăng số lượng và ngược lại
+    if (itemIndex > -1) {
+      user.cart[itemIndex].quantity += 1
+    } else {
+      user.cart.push({ product: product_id, color: color_id, size: size_id, quantity: 1 })
+    }
+    await user.save()
+    res.status(HTTP_STATUS.OK).json({
+      message: 'Sản phẩm đã được thêm vào giỏ hàng thành công',
+      cart: user.cart
+    })
+  } catch (error) {
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng' })
+  }
+}
+
+export const getCartController = async (req, res) => {
+  const { _id } = req.user
+
+  try {
+    const user = await Users.findById(_id).populate({
+      path: 'cart.product',
+      select: '-createdAt -updatedAt',
+      populate: {
+        path: 'category',
+        select: 'title -_id'
+      }
+    })
+    if (!user) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
+    }
+
+    // Tạo một mảng mới cho carts để chứa thông tin đã được tùy chỉnh
+    const carts = await Promise.all(
+      user.cart.map(async (item) => {
+        // Populate thông tin color và size dựa trên ID đã lưu trong giỏ hàng
+        const color = item.color ? await Colors.findById(item.color).select('name _id') : null
+        const size = item.size ? await Sizes.findById(item.size).select('name _id') : null
+
+        return {
+          product: {
+            ...item.product._doc, // Sử dụng _doc để lấy dữ liệu thô của sản phẩm
+            category: item.product.category ? item.product.category.title : null, // Lấy tên category
+            colors: color ? [{ name: color.name, _id: color._id }] : [], // Chỉ đưa vào color đã chọn
+            sizes: size ? [{ name: size.name, _id: size._id }] : []
+          },
+          quantity: item.quantity
+        }
+      })
+    )
+
+    res.status(HTTP_STATUS.OK).json({
+      message: 'Giỏ hàng được lấy thành công',
+      carts
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi lấy giỏ hàng' })
+  }
+}
+
+export const updateCartItemController = async (req, res) => {
+  const { _id } = req.user
+  const { product_id, color_id, size_id, quantity } = req.body
+  if (!quantity) {
+    return res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json({
+      message: PRODUCTS_MESSAGE.PRODUCTS_IS_REQUIRED
+    })
+  }
+  try {
+    const user = await Users.findById(_id)
+
+    if (!user) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
+    }
+
+    const itemIndex = user.cart.findIndex(
+      (item) =>
+        item.product.toString() === product_id &&
+        (!color_id || item.color.toString() === color_id) &&
+        (!size_id || item.size.toString() === size_id)
+    )
+
+    if (itemIndex > -1) {
+      if (quantity > 0) {
+        user.cart[itemIndex].quantity = quantity
+      } else {
+        user.cart.splice(itemIndex, 1)
+      }
+      //lưu lại vào đb
+      await user.save()
+      res.status(HTTP_STATUS.OK).json({
+        message: 'Giỏ hàng đã được cập nhật thành công',
+        cart: user.cart
+      })
+    } else {
+      res.status(HTTP_STATUS.NOT_FOUND).json({
+        message: 'Sản phẩm không tìm thấy trong giỏ hàng'
+      })
+    }
+  } catch (error) {
+    console.error(error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi cập nhật giỏ hàng' })
+  }
+}
+
+//xóa luôn
+export const deleteItemFromCartController = async (req, res) => {
+  const { _id } = req.user
+  const { product_id, color_id, size_id } = req.body
+  try {
+    const user = await Users.findById(_id)
+    // Tìm và xóa sản phẩm khỏi giỏ hàng
+    const updatedCart = user.cart.filter((item) => {
+      return !(
+        item.product.toString() === product_id &&
+        (!color_id || item.color.toString() === color_id) &&
+        (!size_id || item.size.toString() === size_id)
+      )
+    })
+    user.cart = updatedCart
+    await user.save()
+    res.status(HTTP_STATUS.OK).json({
+      message: 'Sản phẩm đã được xóa khỏi giỏ hàng',
+      cart: user.cart
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi xóa sản phẩm khỏi giỏ hàng' })
   }
 }
