@@ -115,7 +115,7 @@ export const signInController = async (req, res) => {
 
 export const addToCartController = async (req, res) => {
   const { _id } = req.user
-  let { product_id, color_id, size_id, quantity } = req.body
+  let { product_id, color_id, size_id } = req.body
 
   try {
     const product = await Products.findById(product_id).populate(['colors', 'sizes'])
@@ -125,33 +125,28 @@ export const addToCartController = async (req, res) => {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
     }
 
-    // không chọn lấy size và color đầu tiên của sản phẩm
-    if (!color_id && product.colors.length >= 1) {
-      color_id = product.colors[0]._id.toString()
+    if (!color_id && product.colors.length > 0) {
+      color_id = product.colors[0]._id?.toString()
     }
-    if (!size_id && product.sizes.length >= 1) {
-      color_id = product.sizes[0]._id.toString()
+    if (!size_id && product.sizes.length > 0) {
+      size_id = product.sizes[0]._id?.toString()
     }
 
-    // Kiểm tra xem sản phẩm với màu sắc và kích thước đã chọn đã tồn tại trong giỏ hàng chưa
     let itemIndex = user.cart.findIndex(
       (item) =>
-        item?.product?.toString() === product_id &&
-        (!color_id || item?.color?.toString() === color_id) &&
-        (!size_id || item?.size?.toString() === size_id)
+        item.product?.toString() === product_id &&
+        item.color?.toString() === color_id &&
+        item.size?.toString() === size_id
     )
 
-    // Nếu đã tồn tại, tăng số lượng và ngược lại
     if (itemIndex > -1) {
-      user.cart[itemIndex].quantity += quantity
-      user.cart[itemIndex].total_price = user.cart[itemIndex].quantity * product.price // Cập nhật tổng giá tiền
+      user.cart[itemIndex].quantity += 1
     } else {
       user.cart.push({
         product: product_id,
         color: color_id,
         size: size_id,
-        quantity: quantity,
-        total_price: quantity * product.price // Tính tổng giá tiền khi thêm mới
+        quantity: 1
       })
     }
     await user.save()
@@ -183,7 +178,6 @@ export const getCurrentUserController = async (req, res) => {
       user.cart.map(async (item) => {
         const color = item.color ? await Colors.findById(item.color).select('name _id') : null
         const size = item.size ? await Sizes.findById(item.size).select('name _id') : null
-
         return {
           ...item._doc,
           product: {
@@ -191,8 +185,7 @@ export const getCurrentUserController = async (req, res) => {
             category: item.product.category ? item.product.category.title : null,
             colors: color ? [{ name: color.name, _id: color._id }] : [],
             sizes: size ? [{ name: size.name, _id: size._id }] : []
-          },
-          quantity: item.quantity
+          }
         }
       })
     )
