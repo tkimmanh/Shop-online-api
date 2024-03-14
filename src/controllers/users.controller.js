@@ -151,11 +151,12 @@ export const addToCartController = async (req, res) => {
     }
     await user.save()
     res.status(HTTP_STATUS.OK).json({
-      message: 'Sản phẩm đã được thêm vào giỏ hàng thành công',
-      cart: user.cart
+      message: 'Đã thêm sản phẩm vào giỏ hàng'
     })
   } catch (error) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng' })
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng'
+    })
   }
 }
 
@@ -205,9 +206,9 @@ export const getCurrentUserController = async (req, res) => {
     })
   } catch (error) {
     console.error(error)
-    res
-      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-      .json({ message: 'Có lỗi xảy ra khi lấy thông tin người dùng và giỏ hàng' })
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi lấy thông tin người dùng và giỏ hàng'
+    })
   }
 }
 
@@ -221,7 +222,6 @@ export const updateCartItemController = async (req, res) => {
   }
   try {
     const user = await Users.findById(_id)
-
     if (!user) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
     }
