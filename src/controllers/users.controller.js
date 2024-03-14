@@ -115,7 +115,7 @@ export const signInController = async (req, res) => {
 
 export const addToCartController = async (req, res) => {
   const { _id } = req.user
-  let { product_id, color_id, size_id } = req.body
+  let { product_id, color_id, size_id, quantity } = req.body
 
   try {
     const product = await Products.findById(product_id).populate(['colors', 'sizes'])
@@ -143,9 +143,16 @@ export const addToCartController = async (req, res) => {
 
     // Nếu đã tồn tại, tăng số lượng và ngược lại
     if (itemIndex > -1) {
-      user.cart[itemIndex].quantity += 1
+      user.cart[itemIndex].quantity += quantity
+      user.cart[itemIndex].total_price = user.cart[itemIndex].quantity * product.price // Cập nhật tổng giá tiền
     } else {
-      user.cart.push({ product: product_id, color: color_id, size: size_id, quantity: 1 })
+      user.cart.push({
+        product: product_id,
+        color: color_id,
+        size: size_id,
+        quantity: quantity,
+        total_price: quantity * product.price // Tính tổng giá tiền khi thêm mới
+      })
     }
     await user.save()
     res.status(HTTP_STATUS.OK).json({
@@ -157,34 +164,32 @@ export const addToCartController = async (req, res) => {
   }
 }
 
-export const getCartController = async (req, res) => {
+export const getCurrentUserController = async (req, res) => {
   const { _id } = req.user
-
   try {
     const user = await Users.findById(_id).populate({
       path: 'cart.product',
-      select: '-createdAt -updatedAt',
+      select: '-createdAt -updatedAt -refresh_token -password',
       populate: {
         path: 'category',
-        select: 'title -_id'
+        select: 'title _id'
       }
     })
     if (!user) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
     }
-
-    // Tạo một mảng mới cho carts để chứa thông tin đã được tùy chỉnh
-    const carts = await Promise.all(
+    // Tùy chỉnh thông tin sản phẩm trong giỏ hàng
+    const customizedCart = await Promise.all(
       user.cart.map(async (item) => {
-        // Populate thông tin color và size dựa trên ID đã lưu trong giỏ hàng
         const color = item.color ? await Colors.findById(item.color).select('name _id') : null
         const size = item.size ? await Sizes.findById(item.size).select('name _id') : null
 
         return {
+          ...item._doc,
           product: {
-            ...item.product._doc, // Sử dụng _doc để lấy dữ liệu thô của sản phẩm
-            category: item.product.category ? item.product.category.title : null, // Lấy tên category
-            colors: color ? [{ name: color.name, _id: color._id }] : [], // Chỉ đưa vào color đã chọn
+            ...item.product._doc,
+            category: item.product.category ? item.product.category.title : null,
+            colors: color ? [{ name: color.name, _id: color._id }] : [],
             sizes: size ? [{ name: size.name, _id: size._id }] : []
           },
           quantity: item.quantity
@@ -192,13 +197,24 @@ export const getCartController = async (req, res) => {
       })
     )
 
+    const userResponse = user.toObject()
+    delete userResponse.password
+    delete userResponse.refresh_token
+    delete userResponse.role
+
+    // Cập nhật giỏ hàng trong đối tượng người dùng
+    userResponse.cart = customizedCart
+
+    // Trả về thông tin người dùng bao gồm giỏ hàng đã được tùy chỉnh
     res.status(HTTP_STATUS.OK).json({
-      message: 'Giỏ hàng được lấy thành công',
-      carts
+      message: 'Thông tin người dùng lấy thành công',
+      user: userResponse
     })
   } catch (error) {
     console.error(error)
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi lấy giỏ hàng' })
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ message: 'Có lỗi xảy ra khi lấy thông tin người dùng và giỏ hàng' })
   }
 }
 

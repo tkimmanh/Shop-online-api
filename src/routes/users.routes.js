@@ -3,7 +3,7 @@ import {
   addToCartController,
   createUserController,
   deleteItemFromCartController,
-  getCartController,
+  getCurrentUserController,
   signInController,
   updateCartItemController
 } from '~/controllers/users.controller'
@@ -16,5 +16,5 @@ routerUsers.post('/sigin', signInController)
 routerUsers.post('/add-to-cart', authenticateToken, addToCartController)
 routerUsers.post('/delete-cart', authenticateToken, deleteItemFromCartController)
 routerUsers.post('/update-cart', authenticateToken, updateCartItemController)
-routerUsers.get('/cart', authenticateToken, getCartController)
+routerUsers.get('/', authenticateToken, getCurrentUserController)
 export default routerUsers

@@ -1,6 +1,5 @@
 import { Schema, model } from 'mongoose'
-
-const cartItemSchema = new Schema(
+const cartSchema = new Schema(
   {
     product: {
       type: Schema.Types.ObjectId,
@@ -25,7 +24,6 @@ const cartItemSchema = new Schema(
   },
   { _id: false }
 )
-
 const usersSchema = new Schema(
   {
     full_name: {
@@ -60,7 +58,7 @@ const usersSchema = new Schema(
         required: true
       }
     ],
-    cart: [cartItemSchema],
+    cart: [cartSchema],
     access_token: {
       type: String
     },
