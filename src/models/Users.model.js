@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose'
+
 const cartSchema = new Schema(
   {
     product: {
@@ -24,6 +25,7 @@ const cartSchema = new Schema(
   },
   { _id: false }
 )
+
 const usersSchema = new Schema(
   {
     full_name: {
