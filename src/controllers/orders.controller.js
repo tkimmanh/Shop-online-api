@@ -98,7 +98,15 @@ export const listUserOrdersController = async (req, res) => {
 export const cancelOrderController = async (req, res) => {
   const { id } = req.params
   const { _id } = req.user
-  console.log('_id:', _id)
+  const { status } = req.body
+
+  const statusUserUpdateOrder = ['Tiếp tục mua hàng', 'Đã hủy']
+
+  if (!statusUserUpdateOrder.includes(status)) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      message: 'Trạng thái không hợp lệ.'
+    })
+  }
 
   try {
     const order = await Orders.findById(id)
@@ -113,13 +121,14 @@ export const cancelOrderController = async (req, res) => {
         message: 'Bạn không có quyền hủy đơn hàng này.'
       })
     }
-
-    order.status = 'Đã hủy'
-    await order.save()
+    order.status = status
 
     res.status(HTTP_STATUS.OK).json({
-      message: 'Đơn hàng đã được hủy'
+      message: `Đơn hàng của bạn đã được cập nhật thành "${status}" thành công.`,
+      order
     })
+
+    await order.save()
   } catch (error) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra khi cập nhật trạng thái đơn hàng.',
@@ -127,6 +136,7 @@ export const cancelOrderController = async (req, res) => {
     })
   }
 }
+
 export const deleteOrderController = async (req, res) => {
   const { id } = req.params
   const { _id } = req.user
@@ -152,6 +162,85 @@ export const deleteOrderController = async (req, res) => {
   } catch (error) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra khi xóa đơn hàng.',
+      error: error.message
+    })
+  }
+}
+
+export const getAllOrdersForAdminController = async (req, res) => {
+  const { sort, search } = req.query
+  let sortOptions = {}
+  if (sort === 'newest') {
+    sortOptions.createdAt = -1 // Sắp xếp từ mới nhất đến cũ nhất
+  } else if (sort === 'oldest') {
+    sortOptions.createdAt = 1 // Sắp xếp từ cũ nhất đến mới nhất
+  }
+
+  let searchOptions = {}
+  if (search) {
+    searchOptions = {
+      $or: [
+        { 'user.full_name': { $regex: search, $options: 'i' } },
+        { 'user.email': { $regex: search, $options: 'i' } }
+      ]
+    }
+  }
+
+  try {
+    const orders = await Orders.find(searchOptions)
+      .populate({
+        path: 'user',
+        match: search
+          ? { $or: [{ full_name: { $regex: search, $options: 'i' } }, { email: { $regex: search, $options: 'i' } }] }
+          : {},
+        select: 'full_name email phone address'
+      })
+      .sort(sortOptions)
+
+    // Lọc ra các đơn hàng không tìm thấy người dùng do điều kiện match
+    const filteredOrders = orders.filter((order) => order.user)
+
+    res.status(HTTP_STATUS.OK).json({
+      message: 'Lấy tất cả đơn hàng thành công.',
+      orders: filteredOrders
+    })
+  } catch (error) {
+    console.log('error:', error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi lấy thông tin đơn hàng.',
+      error: error.message
+    })
+  }
+}
+export const updateOrderStatusByAdminController = async (req, res) => {
+  const { id } = req.params
+  const { status } = req.body
+
+  if (req.user.role !== 'admin') {
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+      message: 'Chỉ có admin mới có quyền cập nhật trạng thái đơn hàng.'
+    })
+  }
+
+  try {
+    const order = await Orders.findById(id)
+    if (!order) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
+        message: 'Đơn hàng không tồn tại.'
+      })
+    }
+
+    order.status = status
+    await order.save()
+
+    res.status(HTTP_STATUS.OK).json({
+      message: `Trạng thái đơn hàng của khách hàng đã được cập nhật thành "${status}".`,
+      order
+    })
+  } catch (error) {
+    console.log('error:', error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi cập nhật trạng thái đơn hàng.',
       error: error.message
     })
   }

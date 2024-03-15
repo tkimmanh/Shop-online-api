@@ -36,7 +36,7 @@ const ordersSchema = new Schema(
     payment_method: {
       type: String,
       default: 'Thanh toán khi nhận hàng',
-      enum: ['Thanh toán khi nhận hàng', 'Thanh toán thằng thẻ tín dụng']
+      enum: ['Thanh toán khi nhận hàng', 'Thanh toán bằng thẻ tín dụng']
     }
   },
   { timestamps: true }
