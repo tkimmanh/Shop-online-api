@@ -34,9 +34,10 @@ export const isAdmin = async (req, res, next) => {
 }
 export const isStaff = async (req, res, next) => {
   const { role } = req.user
-  if (role !== 'staff')
+  if (!(role === 'staff' || role === 'admin')) {
     return res.status(HTTP_STATUS.FORBIDDEN).json({
       message: 'Không thể truy cập'
     })
+  }
   next()
 }
