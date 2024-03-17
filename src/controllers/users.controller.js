@@ -194,7 +194,6 @@ export const getCurrentUserController = async (req, res) => {
     const userResponse = user.toObject()
     delete userResponse.password
     delete userResponse.refresh_token
-    delete userResponse.role
 
     // Cập nhật giỏ hàng trong đối tượng người dùng
     userResponse.cart = customizedCart
