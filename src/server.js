@@ -15,7 +15,12 @@ const app = express()
 
 connect()
 app.use(express.json())
-app.use(cors())
+app.use(
+  cors({
+    origin: 'http://localhost:3001',
+    credentials: true
+  })
+)
 app.use(express.urlencoded({ extended: true }))
 app.use('/user', routerUsers)
 app.use('/products', routerProducts)
