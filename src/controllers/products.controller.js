@@ -25,20 +25,17 @@ export const createProductController = async (req, res) => {
       })
     }
 
-    const thumbnail = req.files.thumbnail
-      ? {
-          url: req.files.thumbnail[0].path,
-          public_id: req.files.thumbnail[0].filename
-        }
-      : null
+    const thumbnail = req?.files?.thumbnail && {
+      url: req?.files?.thumbnail[0].path,
+      public_id: req.files.thumbnail[0].filename
+    }
 
-    const images = req.files.images
-      ? req.files.images.map((file) => ({
-          url: file.path,
-          public_id: file.filename
-        }))
-      : []
-
+    const images =
+      req?.files?.images &&
+      req?.files?.images?.map((file) => ({
+        url: file.path,
+        public_id: file.filename
+      }))
     const newProduct = await Products.create({
       ...req.body,
       slug: slugify(title),
