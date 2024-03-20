@@ -115,7 +115,7 @@ export const signInController = async (req, res) => {
 
 export const addToCartController = async (req, res) => {
   const { _id } = req.user
-  let { product_id, color_id, size_id } = req.body
+  let { product_id, color_id, size_id, quantity = 1 } = req.body
 
   try {
     const product = await Products.findById(product_id).populate(['colors', 'sizes'])
@@ -146,7 +146,7 @@ export const addToCartController = async (req, res) => {
         product: product_id,
         color: color_id,
         size: size_id,
-        quantity: 1
+        quantity: quantity
       })
     }
     await user.save()
@@ -179,13 +179,17 @@ export const getCurrentUserController = async (req, res) => {
       user.cart.map(async (item) => {
         const color = item.color ? await Colors.findById(item.color).select('name _id') : null
         const size = item.size ? await Sizes.findById(item.size).select('name _id') : null
+        const productPrice = item.product.price
+        const subtotal = productPrice * item.quantity
         return {
           ...item._doc,
           product: {
             ...item.product._doc,
             category: item.product.category ? item.product.category.title : null,
             colors: color ? [{ name: color.name, _id: color._id }] : [],
-            sizes: size ? [{ name: size.name, _id: size._id }] : []
+            sizes: size ? [{ name: size.name, _id: size._id }] : [],
+
+            subtotal: subtotal
           }
         }
       })

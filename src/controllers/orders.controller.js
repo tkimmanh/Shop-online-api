@@ -222,7 +222,7 @@ export const updateOrderStatusByAdminController = async (req, res) => {
   const { status } = req.body
 
   try {
-    const order = await Orders.findById(id)
+    const order = await Orders.findById(id).populate('products.product')
     if (!order) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({
         message: 'Đơn hàng không tồn tại.'
@@ -231,6 +231,17 @@ export const updateOrderStatusByAdminController = async (req, res) => {
 
     order.status = status
     await order.save()
+
+    if (status === 'Giao hàng thành công') {
+      for (const item of order.products) {
+        const product = await Products.findById(item.product)
+        if (product) {
+          product.quantity -= item.quantity
+          product.sold += item.quantity
+          await product.save()
+        }
+      }
+    }
 
     res.status(HTTP_STATUS.OK).json({
       message: `Trạng thái đơn hàng của khách hàng đã được cập nhật thành "${status}".`,
@@ -243,7 +254,6 @@ export const updateOrderStatusByAdminController = async (req, res) => {
     })
   }
 }
-
 export const calculateAnnualRevenueController = async (req, res) => {
   const year = new Date().getFullYear()
   try {
