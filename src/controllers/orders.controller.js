@@ -1,3 +1,4 @@
+import { VNPay } from 'vnpay'
 import HTTP_STATUS from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/message'
 import { default as Orders } from '~/models/Order.model'
@@ -37,12 +38,28 @@ export const placeOrderController = async (req, res) => {
         totalPrice += product.price * item.quantity
       }
     }
-    await Orders.create({
+    const newOrder = await Orders.create({
       user: _id,
       products: user.cart,
       total_price: totalPrice,
       payment_method
     })
+    if (payment_method === 'Thanh toán bằng thẻ tín dụng') {
+      const vnpay = new VNPay({
+        tmnCode: '8F1UD35C',
+        secureSecret: 'KLWBJBXARMRZQIMXBFFNSZUHJLNHRDWK'
+      })
+      const returnUrl = `http://localhost:3001/payment-success`
+      const urlString = vnpay.buildPaymentUrl({
+        vnp_Amount: totalPrice,
+        vnp_IpAddr: '1.1.1.1',
+        vnp_TxnRef: newOrder._id.toString(),
+        vnp_OrderInfo: `Thanh toán đơn hàng `,
+        vnp_OrderType: 'other',
+        vnp_ReturnUrl: returnUrl
+      })
+      return res.json({ paymentUrl: urlString })
+    }
 
     user.cart = []
     await user.save()
@@ -55,6 +72,23 @@ export const placeOrderController = async (req, res) => {
       message: 'Có lỗi xảy ra',
       error: error.message
     })
+  }
+}
+export const paymentSuccessController = async (req, res) => {
+  var vnp_Params = req.query
+  var orderId = vnp_Params['vnp_TxnRef']
+
+  const order = await Orders.findById(orderId)
+  if (order) {
+    order.status_payment = 'Đã thanh toán bằng thẻ tín dụng'
+    await order.save()
+    const user = await Users.findById(order.user)
+    if (user) {
+      user.cart = []
+      await user.save()
+    }
+  } else {
+    res.status(HTTP_STATUS.NOT_FOUND).send('Đơn hàng không tồn tại')
   }
 }
 export const listUserOrdersController = async (req, res) => {
