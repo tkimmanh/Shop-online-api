@@ -284,3 +284,95 @@ export const deleteItemFromCartController = async (req, res) => {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi xóa sản phẩm khỏi giỏ hàng' })
   }
 }
+
+export const updateUserController = async (req, res) => {
+  const { _id } = req.body
+  const { old_password, password, address, phone, full_name } = req.body
+  let updateData = { address, phone, full_name }
+
+  try {
+    if (old_password && password) {
+      const user = await Users.findById(_id)
+
+      const isMatch = await bcrypt.compare(old_password, user.password)
+      if (!isMatch) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'Mật khẩu cũ không chính xác' })
+      }
+
+      const hash = await bcrypt.hash(password, 10)
+      updateData.password = hash
+    }
+
+    const updatedUser = await Users.findOneAndUpdate({ _id }, updateData, { new: true, runValidators: true }).select(
+      '-password -refresh_token'
+    )
+    if (!updatedUser) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
+    }
+    res.status(HTTP_STATUS.OK).json({
+      message: 'Thông tin người dùng đã được cập nhật thành công',
+      user: {
+        _id: updatedUser._id,
+        email: updatedUser.email,
+        full_name: updatedUser.full_name,
+        address: updatedUser.address,
+        phone: updatedUser.phone
+      }
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi cập nhật thông tin người dùng' })
+  }
+}
+
+export const updateUserAdminController = async (req, res) => {
+  const { _id } = req.user
+  const { password, address, phone, role, email, full_name } = req.body
+
+  try {
+    const user = await Users.findById(_id)
+    if (!user) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
+    }
+
+    if (req.user.role !== 'admin') {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: USER_MESSAGE.NOT_AUTHORIZED })
+    }
+
+    if (email && email !== user.email) {
+      const reg = /^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/
+      if (!reg.test(email)) {
+        return res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json({
+          message: USER_MESSAGE.VALIDATE_EMAIL
+        })
+      }
+      user.email = email
+    }
+
+    if (password) {
+      const hash = bcrypt.hashSync(password, 10)
+      user.password = hash
+    }
+
+    if (address) user.address = address
+    if (phone) user.phone = phone
+    if (role) user.role = role
+    if (full_name) user.full_name = full_name
+    await user.save()
+
+    res.status(HTTP_STATUS.OK).json({
+      message: 'Thông tin người dùng đã được cập nhật thành công',
+      user: {
+        _id: user._id,
+        email: user.email,
+        full_name: user.full_name,
+        address: user.address,
+        phone: user.phone,
+        role: user.role
+      }
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi cập nhật thông tin người dùng' })
+  }
+}

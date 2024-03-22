@@ -5,6 +5,7 @@ import {
   deleteOrderController,
   getAllOrdersForAdminController,
   listUserOrdersController,
+  paymentSuccessController,
   placeOrderController,
   updateOrderStatusByAdminController
 } from '~/controllers/orders.controller'
@@ -17,7 +18,9 @@ routerOrder.post('/', authenticateToken, placeOrderController)
 routerOrder.get('/my-order', authenticateToken, listUserOrdersController)
 routerOrder.patch('/:id/cancel', authenticateToken, cancelOrderController)
 routerOrder.delete('/:id/delete', authenticateToken, deleteOrderController)
+routerOrder.get('/payment-success', authenticateToken, paymentSuccessController)
 routerOrder.get('/list-orders', authenticateToken, isStaff, getAllOrdersForAdminController)
 routerOrder.patch('/:id/update-status-order', authenticateToken, isStaff, updateOrderStatusByAdminController)
 routerOrder.get('/revenue/monthly', authenticateToken, isStaff, calculateAnnualRevenueController)
+
 export default routerOrder
