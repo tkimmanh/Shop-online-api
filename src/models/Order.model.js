@@ -37,7 +37,7 @@ const ordersSchema = new Schema(
       default: 'Thanh toán khi nhận hàng'
     },
     total_price: {
-      type: String
+      type: Number
     },
     payment_method: {
       type: String,
