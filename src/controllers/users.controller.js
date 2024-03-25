@@ -124,7 +124,16 @@ export const addToCartController = async (req, res) => {
     if (!user) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
     }
-
+    if (product.quantity < quantity) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Số lượng sản phẩm không đủ.'
+      })
+    }
+    if (product.quantity < quantity) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Sản phẩm hiện đã hết hàng.'
+      })
+    }
     if (!color_id && product.colors.length > 0) {
       color_id = product.colors[0]._id?.toString()
     }
@@ -174,6 +183,7 @@ export const getCurrentUserController = async (req, res) => {
     if (!user) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
     }
+
     // Tùy chỉnh thông tin sản phẩm trong giỏ hàng
     const customizedCart = await Promise.all(
       user.cart.map(async (item) => {

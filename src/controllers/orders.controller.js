@@ -1,6 +1,7 @@
 import { VNPay } from 'vnpay'
 import HTTP_STATUS from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/message'
+import { messageOrder } from '~/constants/messageOrder'
 import { default as Orders } from '~/models/Order.model'
 import Products from '~/models/Products.model'
 import Revenues from '~/models/Revenues.model'
@@ -32,12 +33,35 @@ export const placeOrderController = async (req, res) => {
     }
     // Tính toán tổng tiền
     let totalPrice = 0
+    let isOutOfStock = false
+    let isQuantityExceeded = false
     for (const item of user.cart) {
       const product = await Products.findById(item.product)
       if (product) {
+        if (product.quantity < item.quantity) {
+          isOutOfStock = true
+          break
+        }
+        if (item.quantity > product.quantity) {
+          isQuantityExceeded = true
+          break
+        }
         totalPrice += product.price * item.quantity
       }
     }
+
+    if (isOutOfStock) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Sản phẩm hiện đã hết hàng.'
+      })
+    }
+
+    if (isQuantityExceeded) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Số lượng sản phẩm yêu cầu vượt quá số lượng có sẵn.'
+      })
+    }
+
     const newOrder = await Orders.create({
       user: _id,
       products: user.cart,
@@ -65,7 +89,7 @@ export const placeOrderController = async (req, res) => {
     await user.save()
 
     res.status(HTTP_STATUS.OK).json({
-      message: 'Đặt hàng thành công'
+      message: messageOrder.ORDER_START
     })
   } catch (error) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
@@ -130,18 +154,10 @@ export const listUserOrdersController = async (req, res) => {
     })
   }
 }
-export const cancelOrderController = async (req, res) => {
-  const { id } = req.params
+export const updateOrderUserController = async (req, res) => {
+  const { id } = req.body
   const { _id } = req.user
   const { status } = req.body
-
-  const statusUserUpdateOrder = ['Tiếp tục mua hàng', 'Đã hủy']
-
-  if (!statusUserUpdateOrder.includes(status)) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({
-      message: 'Trạng thái không hợp lệ.'
-    })
-  }
 
   try {
     const order = await Orders.findById(id)
@@ -150,20 +166,35 @@ export const cancelOrderController = async (req, res) => {
         message: 'Đơn hàng không tồn tại.'
       })
     }
+    if (order.status === messageOrder.USER_RETURN_ORDER) {
+      const month = order.createdAt.getMonth() + 1
+      const year = order.createdAt.getFullYear()
+
+      const revenueRecord = await Revenues.findOne({ year, month })
+      if (revenueRecord) {
+        revenueRecord.total_revenue -= order.total_price
+        await revenueRecord.save()
+      }
+    }
 
     if (order.user?.toString() !== _id?.toString()) {
-      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+      return res.status(HTTP_STATUS.FORBIDDEN).json({
         message: 'Bạn không có quyền hủy đơn hàng này.'
       })
     }
-    order.status = status
 
+    if (order.status === messageOrder.ORDER_PEDDING) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Không thể cập nhật trạng thái đơn hàng khi đang giao.'
+      })
+    }
+
+    order.status = status
+    await order.save()
     res.status(HTTP_STATUS.OK).json({
       message: `Đơn hàng của bạn đã được cập nhật thành "${status}" thành công.`,
       order
     })
-
-    await order.save()
   } catch (error) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra khi cập nhật trạng thái đơn hàng.',
@@ -188,8 +219,13 @@ export const deleteOrderController = async (req, res) => {
         message: 'Bạn không có quyền xóa đơn hàng này.'
       })
     }
-
-    await Orders.findByIdAndDelete(id)
+    const notAllowedStatuses = [messageOrder.CANCEL_ORDER_FAIL, messageOrder.ORDER_WAIT_CONFIRM]
+    if (notAllowedStatuses.includes(order?.status)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Không thể xóa đơn hàng lúc này'
+      })
+    }
+    await Orders.findOneAndDelete({ _id: id })
 
     res.status(HTTP_STATUS.OK).json({
       message: 'Đơn hàng đã được xóa thành công.'
@@ -288,34 +324,42 @@ export const updateOrderStatusByAdminController = async (req, res) => {
     })
   }
 }
+
 export const calculateAnnualRevenueController = async (req, res) => {
   const year = new Date().getFullYear()
   try {
-    // Tính toán doanh thu cho mỗi tháng và lưu vào database
     for (let month = 1; month <= 12; month++) {
       const startOfMonth = new Date(year, month - 1, 1)
       const endOfMonth = new Date(year, month, 0)
 
-      const monthlyOrders = await Orders.find({
-        createdAt: { $gte: startOfMonth, $lte: endOfMonth },
-        status: { $ne: 'Đã hủy' } // Loại bỏ đơn hàng đã hủy nếu cần
-      }).select('-_id -createdAt -updatedAt -__v') // Loại bỏ các trường không mong muốn
+      const aggregationResult = await Orders.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+            status: messageOrder.ORDER_SUCESS
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: '$total_price' }
+          }
+        }
+      ])
 
       let monthlyRevenue = 0
-      monthlyOrders.forEach((order) => {
-        monthlyRevenue += order.total_price
-      })
+      if (aggregationResult.length > 0) {
+        monthlyRevenue = aggregationResult[0].totalRevenue
+      }
 
-      // Cập nhật hoặc tạo mới bản ghi doanh thu
       await Revenues.findOneAndUpdate(
         { year, month },
-        { $set: { totalRevenue: monthlyRevenue } },
+        { $set: { total_revenue: monthlyRevenue } },
         { upsert: true, new: true }
-      ).select('-_id -createdAt -updatedAt -__v') // Loại bỏ các trường không mong muốn khi trả về dữ liệu
+      )
     }
 
-    // Trả về doanh thu hàng tháng
-    const revenues = await Revenues.find({ year }).sort({ month: 1 }).select('-_id -createdAt -updatedAt -__v') // Loại bỏ các trường không mong muốn
+    const revenues = await Revenues.find({ year }).sort({ month: 1 })
     res.status(HTTP_STATUS.OK).json({
       message: 'Lấy doanh thu hàng tháng trong năm thành công',
       revenues
