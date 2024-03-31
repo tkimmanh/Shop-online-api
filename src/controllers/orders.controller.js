@@ -13,6 +13,11 @@ export const placeOrderController = async (req, res) => {
 
   try {
     let user = await Users.findById(_id)
+    if (!user.address || !user.phone || !user.full_name) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({
+        message: 'Vui lòng cập nhật thông tin cá nhân trước khi đặt hàng.'
+      })
+    }
     if (!user) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({
         message: USER_MESSAGE.USER_NOT_FOUND
@@ -116,8 +121,9 @@ export const paymentSuccessController = async (req, res) => {
   }
 }
 export const listUserOrdersController = async (req, res) => {
+  const { _id } = req.user
   try {
-    const orders = await Orders.find()
+    const orders = await Orders.find({ user: _id })
       .populate({
         path: 'user',
         select: 'phone full_name address'
@@ -150,6 +156,43 @@ export const listUserOrdersController = async (req, res) => {
   } catch (error) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra',
+      error: error.message
+    })
+  }
+}
+export const getOrderDetailController = async (req, res) => {
+  const { id } = req.params
+  try {
+    const order = await Orders.findById(id)
+      .populate({
+        path: 'user',
+        select: 'full_name email phone address'
+      })
+      .populate({
+        path: 'products.product',
+        select: 'title price description',
+        populate: {
+          path: 'category',
+          model: 'Categories',
+          select: 'title -_id'
+        }
+      })
+      .populate('products.color', 'name color_code -_id')
+      .populate('products.size', 'name -_id')
+
+    if (!order) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
+        message: 'Đơn hàng không tồn tại.'
+      })
+    }
+
+    res.status(HTTP_STATUS.OK).json({
+      message: 'Thông tin chi tiết đơn hàng.',
+      order
+    })
+  } catch (error) {
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi lấy thông tin chi tiết đơn hàng.',
       error: error.message
     })
   }
