@@ -3,6 +3,7 @@ import {
   calculateAnnualRevenueController,
   deleteOrderController,
   getAllOrdersForAdminController,
+  getOrderDetailController,
   listUserOrdersController,
   paymentSuccessController,
   placeOrderController,
@@ -18,6 +19,7 @@ routerOrder.post('/', authenticateToken, placeOrderController)
 routerOrder.get('/my-order', authenticateToken, listUserOrdersController)
 routerOrder.patch('/:id/update', authenticateToken, updateOrderUserController)
 routerOrder.delete('/:id/delete', authenticateToken, deleteOrderController)
+routerOrder.get('/:id/detail', authenticateToken, getOrderDetailController)
 routerOrder.get('/payment-success', authenticateToken, paymentSuccessController)
 routerOrder.get('/revenue/monthly', authenticateToken, isStaff, calculateAnnualRevenueController)
 routerOrder.get('/list-orders', authenticateToken, isStaff, getAllOrdersForAdminController)
