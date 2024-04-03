@@ -59,6 +59,8 @@ export const createProductController = async (req, res) => {
 
 export const updateProductController = async (req, res) => {
   const { id } = req.params
+  let { colors, sizes } = req.body
+
   if (!id) {
     return res.status(HTTP_STATUS.NOT_FOUND).json({
       message: PRODUCTS_MESSAGE.PRODUCTS_NOT_FOUND
@@ -66,6 +68,11 @@ export const updateProductController = async (req, res) => {
   }
 
   try {
+    colors = colors?.split(',')
+    sizes = sizes?.split(',')
+    colors = colors?.map((color) => new mongoose.Types.ObjectId(color))
+    sizes = sizes?.map((size) => new mongoose.Types.ObjectId(size))
+
     const productToUpdate = await Products.findById(id)
     if (!productToUpdate) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({
@@ -105,7 +112,7 @@ export const updateProductController = async (req, res) => {
 
     const updateProduct = await Products.findOneAndUpdate(
       { _id: id },
-      { ...req.body, thumbnail: updatedThumbnail, images: updatedImages },
+      { ...req.body, thumbnail: updatedThumbnail, images: updatedImages, colors, sizes },
       { new: true }
     )
     if (updateProduct) {
