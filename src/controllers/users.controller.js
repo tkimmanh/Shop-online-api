@@ -6,6 +6,7 @@ import Products from '~/models/Products.model'
 import Sizes from '~/models/Sizes.model'
 import Users from '~/models/Users.model'
 import { generateToken } from '~/utils/jwt'
+import axios from 'axios'
 
 export const createUserController = async (req, res) => {
   try {
@@ -112,7 +113,62 @@ export const signInController = async (req, res) => {
     })
   }
 }
+export const oauthGoogleController = async (req, res) => {
+  const { code } = req.query
+  try {
+    const body = {
+      code,
+      client_id: process.env.CLIENT_GOOGLE_ID,
+      client_secret: process.env.CLIEN_SECRET_ID,
+      redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+      grant_type: 'authorization_code'
+    }
+    const { data: tokenData } = await axios.post('https://oauth2.googleapis.com/token', new URLSearchParams(body), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
+    // Lấy thông tin người dùng từ Google
+    const { data: userInfo } = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo', {
+      params: {
+        access_token: tokenData.access_token,
+        alt: 'json'
+      },
+      headers: {
+        Authorization: `Bearer ${tokenData.id_token}`
+      }
+    })
 
+    let user = await Users.findOne({ email: userInfo.email })
+
+    if (!user) {
+      // Nếu chưa tồn tại, tạo người dùng mới
+      const password = Math.random().toString(36).substring(7)
+      const hashedPassword = await bcrypt.hash(password, 10)
+      user = await Users.create({
+        email: userInfo.email,
+        full_name: userInfo.name,
+        password: hashedPassword
+        // Thêm các trường khác nếu cần
+      })
+    }
+
+    // Tạo token cho người dùng
+    const access_token = generateToken({
+      id: user._id,
+      secret_code: process.env.SECRET_KEY_USER,
+      expiresIn: '1d'
+    })
+    const redirectUrl = `${process.env.CLIEN_REDIRECT_URL}?access_token=${access_token}&is_login=${true}`
+    return res.redirect(redirectUrl)
+  } catch (error) {
+    console.error(error)
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi xác thực với Google',
+      error: error.message
+    })
+  }
+}
 export const addToCartController = async (req, res) => {
   const { _id } = req.user
   let { product_id, color_id, size_id, quantity = 1 } = req.body
