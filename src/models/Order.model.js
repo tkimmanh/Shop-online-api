@@ -39,6 +39,14 @@ const ordersSchema = new Schema(
     total_price: {
       type: Number
     },
+    coupon: {
+      type: String,
+      default: ''
+    },
+    discount: {
+      type: Number,
+      default: 0
+    },
     payment_method: {
       type: String,
       default: 'Thanh toán khi nhận hàng',

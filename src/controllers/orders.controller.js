@@ -2,6 +2,7 @@ import { VNPay } from 'vnpay'
 import HTTP_STATUS from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/message'
 import { messageOrder } from '~/constants/messageOrder'
+import Coupons from '~/models/Coupons.model'
 import { default as Orders } from '~/models/Order.model'
 import Products from '~/models/Products.model'
 import Revenues from '~/models/Revenues.model'
@@ -9,14 +10,27 @@ import { default as Users } from '~/models/Users.model'
 
 export const placeOrderController = async (req, res) => {
   const { _id } = req.user
-  const { payment_method, address, phone, full_name } = req.body
-
+  const { payment_method, address, phone, full_name, coupon_code } = req.body
+  let discount = 0
   try {
     let user = await Users.findById(_id)
     if (!user.address || !user.phone || !user.full_name) {
       return res.status(HTTP_STATUS.FORBIDDEN).json({
         message: 'Vui lòng cập nhật thông tin cá nhân trước khi đặt hàng.'
       })
+    }
+    if (coupon_code) {
+      const coupon = await Coupons.findOne({
+        code: coupon_code,
+        is_active: true,
+        expiration_date: { $gte: new Date() }
+      })
+      if (!coupon) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          message: 'Coupon không hợp lệ hoặc đã hết hạn.'
+        })
+      }
+      discount = coupon.discount
     }
     if (!user) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({
@@ -66,12 +80,16 @@ export const placeOrderController = async (req, res) => {
         message: 'Số lượng sản phẩm yêu cầu vượt quá số lượng có sẵn.'
       })
     }
+    if (discount > 0) {
+      totalPrice = totalPrice - (totalPrice * discount) / 100
+    }
 
     const newOrder = await Orders.create({
       user: _id,
       products: user.cart,
       total_price: totalPrice,
-      payment_method
+      discount: discount > 0 ? discount : undefined,
+      coupon: coupon_code || undefined
     })
     if (payment_method === 'Thanh toán bằng thẻ tín dụng') {
       const vnpay = new VNPay({
@@ -95,6 +113,41 @@ export const placeOrderController = async (req, res) => {
 
     res.status(HTTP_STATUS.OK).json({
       message: messageOrder.ORDER_START
+    })
+  } catch (error) {
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra',
+      error: error.message
+    })
+  }
+}
+export const applyCouponController = async (req, res) => {
+  const { coupon_code, cartItems } = req.body
+  try {
+    const coupon = await Coupons.findOne({
+      code: coupon_code,
+      is_active: true,
+      expiration_date: { $gte: new Date() }
+    })
+    if (!coupon) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Coupon không hợp lệ hoặc đã hết hạn.'
+      })
+    }
+    let totalPrice = 0
+    for (const item of cartItems) {
+      const product = await Products.findById(item.product)
+      if (product) {
+        totalPrice += product.price * item.quantity
+      }
+    }
+    const discount = coupon.discount
+    const discountedPrice = totalPrice - (totalPrice * discount) / 100
+
+    return res.status(HTTP_STATUS.OK).json({
+      message: 'Áp dụng mã giảm giá thành công.',
+      totalPrice: discountedPrice,
+      discount
     })
   } catch (error) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
