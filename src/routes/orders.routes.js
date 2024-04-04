@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import {
+  applyCouponController,
   calculateAnnualRevenueController,
   deleteOrderController,
   getAllOrdersForAdminController,
@@ -16,6 +17,7 @@ import { authenticateToken, isStaff } from '~/middlewares/auth.middlewares'
 const routerOrder = Router()
 
 routerOrder.post('/', authenticateToken, placeOrderController)
+routerOrder.post('/apply-coupon', authenticateToken, applyCouponController)
 routerOrder.get('/my-order', authenticateToken, listUserOrdersController)
 routerOrder.patch('/:id/update', authenticateToken, updateOrderUserController)
 routerOrder.delete('/:id/delete', authenticateToken, deleteOrderController)
