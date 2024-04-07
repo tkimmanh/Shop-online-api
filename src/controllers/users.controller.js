@@ -7,6 +7,7 @@ import Sizes from '~/models/Sizes.model'
 import Users from '~/models/Users.model'
 import { generateToken } from '~/utils/jwt'
 import axios from 'axios'
+import sendEmail from '~/utils/mail'
 
 export const createUserController = async (req, res) => {
   try {
@@ -440,5 +441,38 @@ export const updateUserAdminController = async (req, res) => {
   } catch (error) {
     console.error(error)
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi cập nhật thông tin người dùng' })
+  }
+}
+export const getAllUserEmailsController = async (req, res) => {
+  try {
+    const users = await Users.find({}, 'email')
+    const emails = users.map((user) => user.email)
+
+    res.status(HTTP_STATUS.OK).json({
+      message: 'Lấy danh sách email thành công',
+      emails
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi lấy danh sách email' })
+  }
+}
+export const sendEmailToAllUsersController = async (req, res) => {
+  const { subject, text } = req.body
+
+  try {
+    const users = await Users.find({}, 'email')
+    const emails = users.map((user) => user.email)
+
+    emails.forEach((email) => {
+      sendEmail(email, subject, text)
+    })
+
+    res.status(HTTP_STATUS.OK).json({
+      message: 'Email đã được gửi thành công đến người dùng'
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi gửi email' })
   }
 }
