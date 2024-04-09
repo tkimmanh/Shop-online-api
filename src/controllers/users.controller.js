@@ -476,3 +476,82 @@ export const sendEmailToAllUsersController = async (req, res) => {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi gửi email' })
   }
 }
+
+export const editUserByAdminController = async (req, res) => {
+  const { id } = req.params
+  const { email, address, phone, role, full_name } = req.body
+  try {
+    if (!email || !address || !phone || !role || !full_name) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'Vui lòng điền đầy đủ thông tin' })
+    }
+    if (!id) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: USER_MESSAGE.USER_NOT_FOUND })
+    }
+    const result = await Users.findByIdAndUpdate(id)
+    return res.status(HTTP_STATUS.OK).json({
+      message: 'Cập nhật thông tin người dùng thành công',
+      result
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi cập nhật thông tin người dùng' })
+  }
+}
+export const getAllUserByAdminController = async (req, res) => {
+  try {
+    const result = await Users.find().select('-password -refresh_token')
+    return res.status(HTTP_STATUS.OK).json({
+      message: 'Lấy danh sách người dùng thành công',
+      result
+    })
+  } catch (error) {
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi lấy danh sách người dùng'
+    })
+  }
+}
+export const deleteUserByAdminController = async (req, res) => {
+  const { id } = req.params
+  const { admin_id } = req.user_id
+  try {
+    const result = await Users.findByIdAndDelete(id)
+    if (id === admin_id.toString()) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Bạn không thể xóa chính mình khi đang đăng nhập.'
+      })
+    }
+    if (!id) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: USER_MESSAGE.USER_NOT_FOUND
+      })
+    }
+    return res.status(HTTP_STATUS.OK).json({
+      message: 'Xóa người dùng thành công',
+      result
+    })
+  } catch (error) {
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi xóa người dùng'
+    })
+  }
+}
+export const detailUserController = async (req, res) => {
+  const { id } = req.params
+  try {
+    if (!id) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: USER_MESSAGE.USER_NOT_FOUND
+      })
+    }
+    const result = await Users.findOne(id).select('-password -refresh_token')
+
+    return res.status(HTTP_STATUS.OK).json({
+      message: 'Lấy thông tin người dùng thành công',
+      result
+    })
+  } catch (error) {
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi lấy thông tin người dùng'
+    })
+  }
+}
