@@ -46,6 +46,12 @@ const productsSchema = new Schema(
         url: String
       }
     ],
+    reviews: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Review'
+      }
+    ],
     colors: [
       {
         type: Schema.Types.ObjectId,

@@ -1,6 +1,7 @@
 import { Router } from 'express'
 
 import {
+  addOrUpdateProductReviewController,
   createProductController,
   deleteProductController,
   getAllProductController,
@@ -15,9 +16,9 @@ const routerProducts = Router()
 
 routerProducts.get('/', getAllProductController)
 routerProducts.get('/:id', productDetailsController)
+routerProducts.post('/:productId/reviews', authenticateToken, addOrUpdateProductReviewController)
 routerProducts.post('/', authenticateToken, isAdmin, customUploadMiddleware, createProductController)
 routerProducts.put('/:id', authenticateToken, isAdmin, customUploadMiddleware, updateProductController)
 routerProducts.delete('/:id', authenticateToken, isAdmin, deleteProductController)
 routerProducts.put('/:productId/options', authenticateToken, isAdmin, updateProductOptions)
-
 export default routerProducts
