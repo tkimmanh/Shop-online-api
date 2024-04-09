@@ -5,6 +5,7 @@ import { PRODUCTS_MESSAGE } from '~/constants/message'
 import Categories from '~/models/Categories.model'
 import Colors from '~/models/Colors.models'
 import Products from '~/models/Products.model'
+import Review from '~/models/Reviews.model'
 import Sizes from '~/models/Sizes.model'
 import { deleteImageOnCloudinary } from '~/utils/cloudinary'
 
@@ -176,18 +177,28 @@ export const productDetailsController = async (req, res) => {
     })
   }
   try {
-    const findProduct = await Products.findById(id)
+    const product = await Products.findById(id)
       .populate('category', '-createdAt -updatedAt -__v')
       .populate('colors', '-createdAt -updatedAt -__v')
       .populate('sizes', '-createdAt -updatedAt -__v')
-    if (!findProduct) {
+      .populate('reviews', '-createdAt -updatedAt -__v')
+    if (!product) {
       res.status(HTTP_STATUS.NOT_FOUND).json({
         message: PRODUCTS_MESSAGE.PRODUCTS_NOT_FOUND
       })
     }
+    let averageRating = 0
+    if (product.reviews.length > 0) {
+      averageRating = product.reviews.reduce((acc, review) => acc + review.star, 0) / product.reviews.length
+    }
+    const response = {
+      ...product.toObject(),
+      averageRating,
+      totalReviews: product.reviews.length
+    }
     return res.status(HTTP_STATUS.OK).json({
       message: PRODUCTS_MESSAGE.PRODUCT_GET_DETAILS,
-      findProduct
+      response
     })
   } catch (error) {
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
@@ -300,5 +311,27 @@ export const updateProductOptions = async (req, res) => {
     res.status(200).json({ message: 'Product updated with new options', product })
   } catch (error) {
     res.status(500).json({ message: 'Internal server error', error })
+  }
+}
+
+export const addOrUpdateProductReviewController = async (req, res) => {
+  const { productId } = req.params
+  const { star } = req.body
+  const userId = req.user._id
+
+  try {
+    let review = await Review.findOne({ product: productId, user: userId })
+
+    if (review) {
+      review.star = star
+      await review.save()
+    } else {
+      review = await Review.create({ product: productId, user: userId, star })
+      await Products.findByIdAndUpdate(productId, { $push: { reviews: review._id } })
+    }
+    res.status(HTTP_STATUS.OK).json({ message: 'Đánh giá đã được cập nhật.' })
+  } catch (error) {
+    console.error(error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Có lỗi xảy ra khi cập nhật đánh giá.' })
   }
 }
