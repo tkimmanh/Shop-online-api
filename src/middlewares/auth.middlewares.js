@@ -18,7 +18,7 @@ export const authenticateToken = async (req, res, next) => {
       req.user = user
       next()
     } catch (error) {
-      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+      return res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json({
         message: 'Token không hợp lệ'
       })
     }

@@ -51,6 +51,10 @@ const ordersSchema = new Schema(
       type: String,
       default: 'Thanh toán khi nhận hàng',
       enum: ['Thanh toán khi nhận hàng', 'Thanh toán bằng thẻ tín dụng']
+    },
+    deliveredAt: {
+      type: Date,
+      default: null
     }
   },
   { timestamps: true }
