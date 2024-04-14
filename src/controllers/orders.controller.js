@@ -7,6 +7,7 @@ import { default as Orders } from '~/models/Order.model'
 import Products from '~/models/Products.model'
 import Revenues from '~/models/Revenues.model'
 import { default as Users } from '~/models/Users.model'
+import dayjs from 'dayjs'
 
 export const placeOrderController = async (req, res) => {
   const { _id } = req.user
@@ -256,7 +257,7 @@ export const updateOrderUserController = async (req, res) => {
   const { status } = req.body
 
   try {
-    const order = await Orders.findById(id)
+    const order = await Orders.findByIdAndUpdate(id, { status: status }, { new: true })
     if (!order) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({
         message: 'Đơn hàng không tồn tại.'
@@ -284,10 +285,17 @@ export const updateOrderUserController = async (req, res) => {
         message: 'Không thể cập nhật trạng thái đơn hàng khi đang giao.'
       })
     }
-
-    order.status = status
+    if (
+      status === messageOrder.USER_RETURN_ORDER &&
+      (!order.deliveredAt || dayjs().diff(dayjs(order.deliveredAt), 'day') > 3)
+    ) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Không thể trả hàng sau 3 ngày kể từ khi nhận hàng.'
+      })
+    }
     await order.save()
-    res.status(HTTP_STATUS.OK).json({
+
+    return res.status(HTTP_STATUS.OK).json({
       message: `Đơn hàng của bạn đã được cập nhật thành "${status}" thành công.`,
       order
     })
@@ -315,7 +323,11 @@ export const deleteOrderController = async (req, res) => {
         message: 'Bạn không có quyền xóa đơn hàng này.'
       })
     }
-    const notAllowedStatuses = [messageOrder.CANCEL_ORDER_FAIL, messageOrder.ORDER_WAIT_CONFIRM]
+    const notAllowedStatuses = [
+      messageOrder.CANCEL_ORDER_FAIL,
+      messageOrder.ORDER_WAIT_CONFIRM,
+      messageOrder.ORDER_PEDDING
+    ]
     if (notAllowedStatuses.includes(order?.status)) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
         message: 'Không thể xóa đơn hàng lúc này'
@@ -394,11 +406,34 @@ export const updateOrderStatusByAdminController = async (req, res) => {
         message: 'Đơn hàng không tồn tại.'
       })
     }
+    if (order.status === messageOrder.ORDER_SUCESS) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Không thể cập nhật trạng thái đơn hàng khi đã giao hàng thành công.'
+      })
+    }
+    if (order.status === messageOrder.ORDER_WAIT_CONFIRM && status !== messageOrder.ORDER_CONFIRM) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Đơn hàng chờ xác nhận chỉ có thể chuyển sang đã xác nhận đơn hàng.'
+      })
+    }
 
+    if (order.status === messageOrder.ORDER_CONFIRM && status !== messageOrder.ORDER_PEDDING) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Đơn hàng đã xác nhận chỉ có thể chuyển sang đang giao.'
+      })
+    }
+
+    if (
+      order.status === messageOrder.ORDER_PEDDING &&
+      (status === messageOrder.ORDER_WAIT_CONFIRM || status === messageOrder.ORDER_CONFIRM)
+    ) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Đơn hàng đang giao không thể chuyển về trạng thái chờ xác nhận hoặc đã xác nhận.'
+      })
+    }
     order.status = status
-    await order.save()
-
-    if (status === 'Giao hàng thành công') {
+    if (status === messageOrder.ORDER_SUCESS) {
+      order.deliveredAt = new Date()
       for (const item of order.products) {
         const product = await Products.findById(item.product)
         if (product) {
@@ -408,6 +443,16 @@ export const updateOrderStatusByAdminController = async (req, res) => {
         }
       }
     }
+
+    if (status === messageOrder.USER_RETURN_ORDER) {
+      if (!order.deliveredAt || dayjs().diff(dayjs(order.deliveredAt), 'day') > 3) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          message: 'Không thể trả hàng sau 3 ngày kể từ khi nhận hàng.'
+        })
+      }
+    }
+
+    await order.save()
 
     res.status(HTTP_STATUS.OK).json({
       message: `Trạng thái đơn hàng của khách hàng đã được cập nhật thành "${status}".`,
@@ -456,6 +501,7 @@ export const calculateAnnualRevenueController = async (req, res) => {
     }
 
     const revenues = await Revenues.find({ year }).sort({ month: 1 })
+
     res.status(HTTP_STATUS.OK).json({
       message: 'Lấy doanh thu hàng tháng trong năm thành công',
       revenues

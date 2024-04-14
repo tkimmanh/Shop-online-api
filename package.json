@@ -20,6 +20,7 @@
     "cloudinary": "^2.0.3",
     "config": "^3.3.11",
     "cors": "^2.8.5",
+    "dayjs": "^1.11.10",
     "dotenv": "^16.4.5",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",

@@ -25,7 +25,12 @@ export const createProductController = async (req, res) => {
         message: PRODUCTS_MESSAGE.PRODUCTS_IS_REQUIRED
       })
     }
-
+    const productExist = await Products.findOne({ title })
+    if (productExist) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Sản phẩm đã tồn tại'
+      })
+    }
     const thumbnail = req?.files?.thumbnail && {
       url: req?.files?.thumbnail[0].path,
       public_id: req.files.thumbnail[0].filename
