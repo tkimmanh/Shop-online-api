@@ -229,10 +229,14 @@ export const getAllProductController = async (req, res) => {
 
     // Sắp xếp //mới nhất : products?sort=newest  //cũ nhất : products?sort=oldest
     if (sort) {
-      if (sort === 'newest') {
-        query = query.sort('-createdAt')
+      if (sort === 'min') {
+        query = query.sort('price') // Sắp xếp từ thấp đến cao
+      } else if (sort === 'max') {
+        query = query.sort('-price') // Sắp xếp từ cao xuống thấp
+      } else if (sort === 'newest') {
+        query = query.sort('-createdAt') // Sản phẩm mới nhất
       } else if (sort === 'oldest') {
-        query = query.sort('createdAt')
+        query = query.sort('createdAt') // Sản phẩm cũ nhất
       }
     }
 

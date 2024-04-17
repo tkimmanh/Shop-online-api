@@ -6,6 +6,7 @@ import {
   deleteUserByAdminController,
   detailUserController,
   editUserByAdminController,
+  getAllUserByAdminController,
   getAllUserEmailsController,
   getCurrentUserController,
   oauthGoogleController,
@@ -27,6 +28,7 @@ routerUsers.post('/delete-cart', authenticateToken, deleteItemFromCartController
 routerUsers.post('/update-cart', authenticateToken, updateCartItemController)
 routerUsers.get('/', authenticateToken, getCurrentUserController)
 routerUsers.get('/email', authenticateToken, isStaff, getAllUserEmailsController)
+routerUsers.get('/all-users', authenticateToken, isAdmin, getAllUserByAdminController)
 routerUsers.post('/send-email-to-all', authenticateToken, isStaff, sendEmailToAllUsersController)
 routerUsers.put('/edit-by-admin/:id', authenticateToken, isAdmin, editUserByAdminController)
 routerUsers.get('/get-all-by-admin', authenticateToken, isAdmin, editUserByAdminController)
