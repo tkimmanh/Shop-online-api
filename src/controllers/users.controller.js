@@ -512,14 +512,10 @@ export const getAllUserByAdminController = async (req, res) => {
 }
 export const deleteUserByAdminController = async (req, res) => {
   const { id } = req.params
-  const { admin_id } = req.user_id
+
   try {
     const result = await Users.findByIdAndDelete(id)
-    if (id === admin_id.toString()) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        message: 'Bạn không thể xóa chính mình khi đang đăng nhập.'
-      })
-    }
+
     if (!id) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
         message: USER_MESSAGE.USER_NOT_FOUND
