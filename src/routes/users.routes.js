@@ -31,7 +31,6 @@ routerUsers.get('/email', authenticateToken, isStaff, getAllUserEmailsController
 routerUsers.get('/all-users', authenticateToken, isAdmin, getAllUserByAdminController)
 routerUsers.post('/send-email-to-all', authenticateToken, isStaff, sendEmailToAllUsersController)
 routerUsers.put('/edit-by-admin/:id', authenticateToken, isAdmin, editUserByAdminController)
-routerUsers.get('/get-all-by-admin', authenticateToken, isAdmin, editUserByAdminController)
 routerUsers.delete('/delete-by-admin/:id', authenticateToken, isAdmin, deleteUserByAdminController)
 routerUsers.get('/get-by-admin/:id', authenticateToken, isAdmin, detailUserController)
 export default routerUsers

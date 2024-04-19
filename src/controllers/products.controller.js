@@ -303,39 +303,20 @@ export const getAllProductController = async (req, res) => {
     })
   }
 }
-export const updateProductOptions = async (req, res) => {
-  const { productId } = req.params
-  const { colors, sizes } = req.body
-
-  try {
-    // Tìm sản phẩm cần cập nhật
-    const product = await Products.findById(productId)
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' })
-    }
-
-    product.options = { colors, sizes }
-    await product.save()
-
-    res.status(200).json({ message: 'Product updated with new options', product })
-  } catch (error) {
-    res.status(500).json({ message: 'Internal server error', error })
-  }
-}
 
 export const addOrUpdateProductReviewController = async (req, res) => {
   const { productId } = req.params
   const { star } = req.body
-  const userId = req.user._id
+  const { _id } = req.user
 
   try {
-    let review = await Review.findOne({ product: productId, user: userId })
+    let review = await Review.findOne({ product: productId, user: _id })
 
     if (review) {
       review.star = star
       await review.save()
     } else {
-      review = await Review.create({ product: productId, user: userId, star })
+      review = await Review.create({ product: productId, user: _id, star })
       await Products.findByIdAndUpdate(productId, { $push: { reviews: review._id } })
     }
     res.status(HTTP_STATUS.OK).json({ message: 'Đánh giá đã được cập nhật.' })

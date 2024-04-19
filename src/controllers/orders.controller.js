@@ -347,15 +347,13 @@ export const deleteOrderController = async (req, res) => {
 }
 
 export const getAllOrdersForAdminController = async (req, res) => {
-  const { sort, search } = req.query
-  let sortOptions = {}
-  if (sort === 'newest') {
-    sortOptions.createdAt = -1
-  } else if (sort === 'oldest') {
-    sortOptions.createdAt = 1
+  const { search, status } = req.query
+  let searchOptions = {}
+
+  if (status) {
+    searchOptions.status = status
   }
 
-  let searchOptions = {}
   if (search) {
     searchOptions = {
       $or: [
@@ -364,7 +362,9 @@ export const getAllOrdersForAdminController = async (req, res) => {
       ]
     }
   }
-
+  if (search) {
+    searchOptions._id = search
+  }
   try {
     const orders = await Orders.find(searchOptions)
       .populate({
@@ -382,7 +382,6 @@ export const getAllOrdersForAdminController = async (req, res) => {
       })
       .populate('products.color', 'name color_code -_id')
       .populate('products.size', 'name -_id')
-      .sort(sortOptions)
 
     res.status(HTTP_STATUS.OK).json({
       message: 'Lấy tất cả đơn hàng thành công.',
@@ -398,7 +397,6 @@ export const getAllOrdersForAdminController = async (req, res) => {
 export const updateOrderStatusByAdminController = async (req, res) => {
   const { id } = req.params
   const { status } = req.body
-
   try {
     const order = await Orders.findById(id).populate('products.product')
     if (!order) {
