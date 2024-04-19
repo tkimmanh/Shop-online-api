@@ -487,7 +487,7 @@ export const editUserByAdminController = async (req, res) => {
     if (!id) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: USER_MESSAGE.USER_NOT_FOUND })
     }
-    const result = await Users.findByIdAndUpdate(id)
+    const result = await Users.findByIdAndUpdate({ _id: id })
     return res.status(HTTP_STATUS.OK).json({
       message: 'Cập nhật thông tin người dùng thành công',
       result
