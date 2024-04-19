@@ -539,7 +539,7 @@ export const detailUserController = async (req, res) => {
         message: USER_MESSAGE.USER_NOT_FOUND
       })
     }
-    const result = await Users.findOne(id).select('-password -refresh_token')
+    const result = await Users.findOne({ _id: id }).select('-password -refresh_token')
 
     return res.status(HTTP_STATUS.OK).json({
       message: 'Lấy thông tin người dùng thành công',
