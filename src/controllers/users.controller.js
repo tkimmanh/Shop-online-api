@@ -481,13 +481,14 @@ export const editUserByAdminController = async (req, res) => {
   const { id } = req.params
   const { email, address, phone, role, full_name } = req.body
   try {
-    if (!email || !address || !phone || !role || !full_name) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'Vui lòng điền đầy đủ thông tin' })
-    }
     if (!id) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: USER_MESSAGE.USER_NOT_FOUND })
     }
-    const result = await Users.findByIdAndUpdate({ _id: id })
+    const result = await Users.findByIdAndUpdate(
+      { _id: id },
+      { email, address, phone, role, full_name },
+      { new: true }
+    ).select('-password -refresh_token')
     return res.status(HTTP_STATUS.OK).json({
       message: 'Cập nhật thông tin người dùng thành công',
       result
