@@ -552,3 +552,69 @@ export const detailUserController = async (req, res) => {
     })
   }
 }
+export const addToWishlistController = async (req, res) => {
+  const { _id } = req.user
+  const { product_id } = req.body
+
+  try {
+    const user = await Users.findById(_id)
+    if (!user) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
+    }
+    // Kiểm tra xem sản phẩm đã có trong wishlist chưa
+    const isProductInWishlist = user.wishlist.some((item) => item.toString() === product_id)
+    if (!isProductInWishlist) {
+      user.wishlist.push(product_id)
+      await user.save()
+      return res.status(HTTP_STATUS.OK).json({ message: 'Sản phẩm đã được thêm vào wishlist' })
+    } else {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'Sản phẩm đã tồn tại trong wishlist' })
+    }
+  } catch (error) {
+    console.error(error)
+    return res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ message: 'Có lỗi xảy ra khi thêm sản phẩm vào wishlist' })
+  }
+}
+export const removeFromWishlistController = async (req, res) => {
+  const { _id } = req.user
+  const { product_id } = req.body
+  try {
+    const user = await Users.findById(_id)
+    if (!user) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
+    }
+    user.wishlist = user.wishlist.filter((item) => item.toString() !== product_id)
+    await user.save()
+    return res.status(HTTP_STATUS.OK).json({ message: 'Sản phẩm đã được xóa khỏi wishlist' })
+  } catch (error) {
+    console.error(error)
+    return res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ message: 'Có lỗi xảy ra khi xóa sản phẩm khỏi wishlist' })
+  }
+}
+export const getWishlistController = async (req, res) => {
+  const { _id } = req.user
+  try {
+    const user = await Users.findById(_id).populate({
+      path: 'wishlist',
+      model: 'Products'
+    })
+
+    if (!user) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({ message: USER_MESSAGE.USER_NOT_FOUND })
+    }
+
+    return res.status(HTTP_STATUS.OK).json({
+      message: 'Lấy danh sách sản phẩm yêu thích thành công',
+      wishlist: user.wishlist
+    })
+  } catch (error) {
+    console.error(error)
+    return res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ message: 'Có lỗi xảy ra khi lấy danh sách sản phẩm yêu thích' })
+  }
+}

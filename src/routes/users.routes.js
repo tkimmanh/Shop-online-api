@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import {
   addToCartController,
+  addToWishlistController,
   createUserController,
   deleteItemFromCartController,
   deleteUserByAdminController,
@@ -9,7 +10,9 @@ import {
   getAllUserByAdminController,
   getAllUserEmailsController,
   getCurrentUserController,
+  getWishlistController,
   oauthGoogleController,
+  removeFromWishlistController,
   sendEmailToAllUsersController,
   signInController,
   updateCartItemController,
@@ -26,6 +29,9 @@ routerUsers.put('/edit', authenticateToken, updateUserController)
 routerUsers.post('/add-to-cart', authenticateToken, addToCartController)
 routerUsers.post('/delete-cart', authenticateToken, deleteItemFromCartController)
 routerUsers.post('/update-cart', authenticateToken, updateCartItemController)
+routerUsers.get('/wishlist', authenticateToken, getWishlistController)
+routerUsers.post('/wishlist/add', authenticateToken, addToWishlistController)
+routerUsers.post('/wishlist/remove', authenticateToken, removeFromWishlistController)
 routerUsers.get('/', authenticateToken, getCurrentUserController)
 routerUsers.get('/email', authenticateToken, isStaff, getAllUserEmailsController)
 routerUsers.get('/all-users', authenticateToken, isAdmin, getAllUserByAdminController)
