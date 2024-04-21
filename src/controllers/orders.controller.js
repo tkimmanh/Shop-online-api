@@ -224,7 +224,7 @@ export const getOrderDetailController = async (req, res) => {
       })
       .populate({
         path: 'products.product',
-        select: 'title price description',
+        select: 'title price thumbnail description',
         populate: {
           path: 'category',
           model: 'Categories',
@@ -263,10 +263,14 @@ export const updateOrderUserController = async (req, res) => {
         message: 'Đơn hàng không tồn tại.'
       })
     }
+    if (order.status === messageOrder.RETURN_ORDER_WAIT_CONFIRM) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
+        message: 'Đơn hàng đang được kiểm tra hiện tại không thể huỷ'
+      })
+    }
     if (order.status === messageOrder.USER_RETURN_ORDER) {
       const month = order.createdAt.getMonth() + 1
       const year = order.createdAt.getFullYear()
-
       const revenueRecord = await Revenues.findOne({ year, month })
       if (revenueRecord) {
         revenueRecord.total_revenue -= order.total_price
@@ -279,7 +283,11 @@ export const updateOrderUserController = async (req, res) => {
         message: 'Bạn không có quyền hủy đơn hàng này.'
       })
     }
-
+    if (order.status === messageOrder.ORDER_SUCESS && status === messageOrder.USER_CANCEL_ORDER) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Không thể hủy đơn hàng sau khi đã giao hàng thành công.'
+      })
+    }
     if (order.status === messageOrder.ORDER_PEDDING) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
         message: 'Không thể cập nhật trạng thái đơn hàng khi đang giao.'
@@ -326,13 +334,16 @@ export const deleteOrderController = async (req, res) => {
     const notAllowedStatuses = [
       messageOrder.CANCEL_ORDER_FAIL,
       messageOrder.ORDER_WAIT_CONFIRM,
-      messageOrder.ORDER_PEDDING
+      messageOrder.ORDER_PEDDING,
+      messageOrder.USER_RETURN_ORDER,
+      messageOrder.RETURN_ORDER_WAIT_CONFIRM
     ]
     if (notAllowedStatuses.includes(order?.status)) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
         message: 'Không thể xóa đơn hàng lúc này'
       })
     }
+
     await Orders.findOneAndDelete({ _id: id })
 
     res.status(HTTP_STATUS.OK).json({
@@ -407,6 +418,11 @@ export const updateOrderStatusByAdminController = async (req, res) => {
     if (order.status === messageOrder.ORDER_SUCESS) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
         message: 'Không thể cập nhật trạng thái đơn hàng khi đã giao hàng thành công.'
+      })
+    }
+    if (order.status === messageOrder.RETURN_ORDER_SUCCESS) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'Không thể cập nhật trạng thái đơn hàng đã hoàn thành'
       })
     }
     if (order.status === messageOrder.ORDER_WAIT_CONFIRM && status !== messageOrder.ORDER_CONFIRM) {
@@ -508,6 +524,46 @@ export const calculateAnnualRevenueController = async (req, res) => {
     console.error('Lỗi khi tính toán doanh thu hàng tháng: ', error)
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra khi lấy doanh thu hàng tháng',
+      error: error.message
+    })
+  }
+}
+export const listReturnOrdersController = async (req, res) => {
+  try {
+    const returnStatuses = [
+      messageOrder.USER_RETURN_ORDER,
+      messageOrder.RETURN_ORDER_SUCCESS,
+      messageOrder.RETURN_ORDER_FAIL,
+      messageOrder.RETURN_ORDER_WAIT_CONFIRM,
+      messageOrder.REUTRN_ORDER_CONFIRM
+    ]
+    // Sử dụng $in filer các có trạng thái nằm trong mảng trên
+    const filteredOrders = await Orders.find({
+      status: { $in: returnStatuses }
+    })
+      .populate({
+        path: 'user',
+        select: 'full_name email phone address'
+      })
+      .populate({
+        path: 'products.product',
+        select: 'title price thumbnail description',
+        populate: {
+          path: 'category',
+          model: 'Categories',
+          select: 'title -_id'
+        }
+      })
+      .populate('products.color', 'name color_code -_id')
+      .populate('products.size', 'name -_id')
+
+    return res.status(HTTP_STATUS.OK).json({
+      message: 'Danh sách đơn hàng trả hàng.',
+      orders: filteredOrders
+    })
+  } catch (error) {
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi lấy danh sách đơn hàng trả hàng.',
       error: error.message
     })
   }
