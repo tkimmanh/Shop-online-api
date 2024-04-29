@@ -237,6 +237,8 @@ export const getAllProductController = async (req, res) => {
         query = query.sort('-createdAt') // Sản phẩm mới nhất
       } else if (sort === 'oldest') {
         query = query.sort('createdAt') // Sản phẩm cũ nhất
+      } else if (sort === 'sold') {
+        query = query.sort('-sold') // Sản phẩm bán chạy nhất
       }
     }
 
