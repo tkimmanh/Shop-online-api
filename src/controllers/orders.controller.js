@@ -72,7 +72,7 @@ export const placeOrderController = async (req, res) => {
 
     if (isOutOfStock) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        message: 'Sản phẩm hiện đã hết hàng.'
+        message: 'Sản phẩm hiện đã không có đủ hàng.'
       })
     }
 
@@ -180,7 +180,7 @@ export const listUserOrdersController = async (req, res) => {
     const orders = await Orders.find({ user: _id })
       .populate({
         path: 'user',
-        select: 'phone full_name address'
+        select: 'phone full_name address email'
       })
       .populate({
         path: 'products.product',
@@ -217,22 +217,31 @@ export const listUserOrdersController = async (req, res) => {
 export const getOrderDetailController = async (req, res) => {
   const { id } = req.params
   try {
-    const order = await Orders.findById(id)
+    const order = await Orders.findById({ _id: id })
       .populate({
         path: 'user',
-        select: 'full_name email phone address'
+        select: 'phone full_name address email'
       })
       .populate({
         path: 'products.product',
-        select: 'title price thumbnail description',
+        model: 'Products',
         populate: {
           path: 'category',
           model: 'Categories',
           select: 'title -_id'
-        }
+        },
+        select: '-colors -sizes -_id -sold'
       })
-      .populate('products.color', 'name color_code -_id')
-      .populate('products.size', 'name -_id')
+      .populate({
+        path: 'products.color',
+        model: 'Colors',
+        select: 'name -_id'
+      })
+      .populate({
+        path: 'products.size',
+        model: 'Sizes',
+        select: 'name -_id'
+      })
 
     if (!order) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({
