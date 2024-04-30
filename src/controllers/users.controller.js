@@ -225,7 +225,19 @@ export const addToCartController = async (req, res) => {
     })
   }
 }
+export const saveUserToken = async (req, res) => {
+  const { token } = req.body
+  const userId = req.user._id
 
+  try {
+    const user = await Users.findById(userId)
+    user.deviceToken = token
+    await user.save()
+    res.status(200).json({ message: 'Lưu token thành công' })
+  } catch (error) {
+    res.status(500).json({ message: 'Có lỗi xảy ra khi lưu token', error: error.message })
+  }
+}
 export const getCurrentUserController = async (req, res) => {
   const { _id } = req.user
   try {

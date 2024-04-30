@@ -8,6 +8,7 @@ import Products from '~/models/Products.model'
 import Revenues from '~/models/Revenues.model'
 import { default as Users } from '~/models/Users.model'
 import dayjs from 'dayjs'
+import { getStartEndOfDay, getStartEndOfMonth, getStartEndOfYear } from '~/utils/commons'
 
 export const placeOrderController = async (req, res) => {
   const { _id } = req.user
@@ -454,7 +455,10 @@ export const updateOrderStatusByAdminController = async (req, res) => {
         message: 'Đơn hàng đang giao không thể chuyển về trạng thái chờ xác nhận hoặc đã xác nhận.'
       })
     }
+
+    const previousStatus = order.status
     order.status = status
+
     if (status === messageOrder.ORDER_SUCESS) {
       order.deliveredAt = new Date()
       for (const item of order.products) {
@@ -472,6 +476,35 @@ export const updateOrderStatusByAdminController = async (req, res) => {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           message: 'Không thể trả hàng sau 3 ngày kể từ khi nhận hàng.'
         })
+      }
+    }
+
+    //giao hàng thành công
+    if (status === messageOrder.ORDER_SUCESS && previousStatus !== messageOrder.ORDER_SUCESS) {
+      const month = order.createdAt.getMonth() + 1
+      const year = order.createdAt.getFullYear()
+
+      await Revenues.findOneAndUpdate(
+        { year, month },
+        { $inc: { total_revenue: order.total_price } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      )
+    }
+
+    //đơn hàng trả hàng thành công
+    if (status === messageOrder.RETURN_ORDER_SUCCESS && previousStatus !== messageOrder.RETURN_ORDER_SUCCESS) {
+      const month = order.createdAt.getMonth() + 1
+      const year = order.createdAt.getFullYear()
+
+      await Revenues.findOneAndUpdate({ year, month }, { $inc: { total_revenue: -order.total_price } }, { new: true })
+
+      for (const item of order.products) {
+        const product = await Products.findById(item.product)
+        if (product) {
+          product.quantity += item.quantity
+          product.sold -= item.quantity
+          await product.save()
+        }
       }
     }
 
@@ -496,35 +529,25 @@ export const calculateAnnualRevenueController = async (req, res) => {
       const startOfMonth = new Date(year, month - 1, 1)
       const endOfMonth = new Date(year, month, 0)
 
-      const aggregationResult = await Orders.aggregate([
-        {
-          $match: {
-            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
-            status: messageOrder.ORDER_SUCESS
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            totalRevenue: { $sum: '$total_price' }
-          }
-        }
-      ])
+      const monthlyOrders = await Orders.find({
+        createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+        status: { $ne: 'Đã hủy' } // Loại bỏ các đơn hàng đã hủy
+      }).select('-_id -createdAt -updatedAt -__v')
 
       let monthlyRevenue = 0
-      if (aggregationResult.length > 0) {
-        monthlyRevenue = aggregationResult[0].totalRevenue
-      }
+      monthlyOrders.forEach((order) => {
+        monthlyRevenue += order.total_price
+      })
 
       await Revenues.findOneAndUpdate(
         { year, month },
-        { $set: { total_revenue: monthlyRevenue } },
+        { $set: { totalRevenue: monthlyRevenue } },
         { upsert: true, new: true }
-      )
+      ).select('-_id -createdAt -updatedAt -__v')
     }
 
-    const revenues = await Revenues.find({ year }).sort({ month: 1 })
-
+    // Trả về doanh thu hàng tháng
+    const revenues = await Revenues.find({ year }).sort({ month: 1 }).select('-_id -createdAt -updatedAt -__v') // Loại bỏ các trường không mong muốn
     res.status(HTTP_STATUS.OK).json({
       message: 'Lấy doanh thu hàng tháng trong năm thành công',
       revenues
@@ -537,6 +560,117 @@ export const calculateAnnualRevenueController = async (req, res) => {
     })
   }
 }
+
+export const getTopSellingCategoriesController = async (req, res) => {
+  try {
+    const topSellingCategories = await Products.aggregate([
+      {
+        $group: {
+          _id: '$category',
+          totalSold: { $sum: '$sold' }
+        }
+      },
+      {
+        $sort: { totalSold: -1 }
+      },
+      {
+        $limit: 5
+      },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'categoryDetails'
+        }
+      },
+      {
+        $unwind: '$categoryDetails'
+      }
+    ])
+
+    if (topSellingCategories.length > 0) {
+      res.status(HTTP_STATUS.OK).json({
+        message: 'Top 5 danh mục có sản phẩm bán chạy nhất.',
+        categories: topSellingCategories
+      })
+    } else {
+      res.status(HTTP_STATUS.NOT_FOUND).json({
+        message: 'Không tìm thấy sản phẩm bán chạy trong các danh mục.'
+      })
+    }
+  } catch (error) {
+    console.error('Error fetching top selling categories:', error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi lấy danh sách các danh mục bán chạy nhất.',
+      error: error.message
+    })
+  }
+}
+
+export const getTopSellingProductsController = async (req, res) => {
+  const { period } = req.params
+  const date = new Date(req.query.date || new Date())
+
+  let startEnd
+  if (period === 'day') {
+    startEnd = getStartEndOfDay(date)
+  } else if (period === 'month') {
+    startEnd = getStartEndOfMonth(date)
+  } else if (period === 'year') {
+    startEnd = getStartEndOfYear(date)
+  } else {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      message: 'Invalid period specified. Choose from day, month, or year.'
+    })
+  }
+
+  try {
+    const topProducts = await Orders.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startEnd.start, $lte: startEnd.end } // Lọc các đơn hàng theo ngày, tháng hoặc năm
+        }
+      },
+      { $unwind: '$products' }, // Tách các sản phẩm trong đơn hàng thành các bản ghi riêng lẻ
+      {
+        $group: {
+          _id: '$products.product',
+          totalSold: { $sum: '$products.quantity' }
+        }
+      },
+      {
+        $sort: { totalSold: -1 }
+      },
+      {
+        $limit: 5
+      },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'productDetails'
+        }
+      },
+      {
+        $unwind: '$productDetails'
+      }
+    ])
+
+    res.status(HTTP_STATUS.OK).json({
+      message: `Top 5 selling products of the ${period}`,
+      products: topProducts
+    })
+  } catch (error) {
+    console.error('Error fetching top selling products:', error)
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Error fetching top selling products.',
+      error: error.message
+    })
+  }
+}
+
 export const listReturnOrdersController = async (req, res) => {
   try {
     const returnStatuses = [
