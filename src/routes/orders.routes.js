@@ -5,6 +5,8 @@ import {
   deleteOrderController,
   getAllOrdersForAdminController,
   getOrderDetailController,
+  getTopSellingCategoriesController,
+  getTopSellingProductsController,
   listReturnOrdersController,
   listUserOrdersController,
   paymentSuccessController,
@@ -26,6 +28,8 @@ routerOrder.get('/:id/detail', authenticateToken, getOrderDetailController)
 routerOrder.get('/returns', authenticateToken, isStaff, listReturnOrdersController)
 routerOrder.get('/payment-success', authenticateToken, paymentSuccessController)
 routerOrder.get('/revenue/monthly', authenticateToken, isStaff, calculateAnnualRevenueController)
+routerOrder.get('/category-top-selling', authenticateToken, isStaff, getTopSellingCategoriesController)
+routerOrder.get('/top-selling/:period', authenticateToken, isStaff, getTopSellingProductsController)
 routerOrder.get('/list-orders', authenticateToken, isStaff, getAllOrdersForAdminController)
 routerOrder.patch('/:id/update-status-order', authenticateToken, isStaff, updateOrderStatusByAdminController)
 

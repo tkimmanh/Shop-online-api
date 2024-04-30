@@ -61,6 +61,10 @@ const usersSchema = new Schema(
     access_token: {
       type: String
     },
+    deviceToken: {
+      // sử dụng cho push notification
+      type: String
+    },
     refresh_token: {
       type: String
     }
