@@ -4,6 +4,7 @@ import {
   calculateAnnualRevenueController,
   deleteOrderController,
   getAllOrdersForAdminController,
+  getOrderCountsByStatusController,
   getOrderDetailController,
   getTopSellingCategoriesController,
   getTopSellingProductsController,
@@ -24,6 +25,7 @@ routerOrder.post('/apply-coupon', authenticateToken, applyCouponController)
 routerOrder.get('/my-order', authenticateToken, listUserOrdersController)
 routerOrder.patch('/:id/update', authenticateToken, updateOrderUserController)
 routerOrder.delete('/:id/delete', authenticateToken, deleteOrderController)
+routerOrder.get('/get-counts-status', authenticateToken, getOrderCountsByStatusController)
 routerOrder.get('/:id/detail', authenticateToken, getOrderDetailController)
 routerOrder.get('/returns', authenticateToken, isStaff, listReturnOrdersController)
 routerOrder.get('/payment-success', authenticateToken, paymentSuccessController)

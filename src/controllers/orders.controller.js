@@ -177,33 +177,43 @@ export const paymentSuccessController = async (req, res) => {
 }
 export const listUserOrdersController = async (req, res) => {
   const { _id } = req.user
-  try {
-    const orders = await Orders.find({ user: _id })
-      .populate({
-        path: 'user',
-        select: 'phone full_name address email'
-      })
-      .populate({
-        path: 'products.product',
-        model: 'Products',
-        populate: {
-          path: 'category',
-          model: 'Categories',
-          select: 'title -_id'
-        },
-        select: '-colors -sizes -_id -sold'
-      })
-      .populate({
-        path: 'products.color',
-        model: 'Colors',
-        select: 'name -_id'
-      })
-      .populate({
-        path: 'products.size',
-        model: 'Sizes',
-        select: 'name -_id'
-      })
+  const { status } = req.query
 
+  let queryOptions = { user: _id }
+  if (status) {
+    if (status === messageOrder.USER_RETURN_ORDER) {
+      queryOptions.status = {
+        $in: [
+          messageOrder.USER_RETURN_ORDER,
+          messageOrder.REUTRN_ORDER_CONFIRM,
+          messageOrder.RETURN_ORDER_WAIT_CONFIRM,
+          messageOrder.RETURN_ORDER_SUCCESS,
+          messageOrder.RETURN_ORDER_FAIL
+        ]
+      }
+    } else if (status === messageOrder.CANCEL_ORDER) {
+      queryOptions.status = {
+        $in: [
+          messageOrder.USER_CANCEL_ORDER,
+          messageOrder.WRONG_USER_INFORMATION,
+          messageOrder.ORDER_FAILED,
+          messageOrder.ORDER_CONFIRM_FAIL_2,
+          messageOrder.ORDER_CONFIRM_FAIL_1,
+          messageOrder.ORDER_CONFIRM_FAIL
+        ]
+      }
+    } else {
+      queryOptions.status = status
+    }
+  }
+
+  try {
+    const orders = await Orders.find(queryOptions)
+      .populate('user', 'phone full_name address email')
+      .populate('products.product', 'title price thumbnail description')
+      .populate('products.color', 'name color_code')
+      .populate('products.size', 'name')
+      .sort({ createdAt: -1 })
     res.status(HTTP_STATUS.OK).json({
       message: 'Danh sách đơn hàng đã đặt',
       orders
@@ -268,6 +278,7 @@ export const updateOrderUserController = async (req, res) => {
 
   try {
     const order = await Orders.findByIdAndUpdate(id, { status: status }, { new: true })
+
     if (!order) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({
         message: 'Đơn hàng không tồn tại.'
@@ -278,21 +289,13 @@ export const updateOrderUserController = async (req, res) => {
         message: 'Đơn hàng đang được kiểm tra hiện tại không thể huỷ'
       })
     }
-    if (order.status === messageOrder.USER_RETURN_ORDER) {
-      const month = order.createdAt.getMonth() + 1
-      const year = order.createdAt.getFullYear()
-      const revenueRecord = await Revenues.findOne({ year, month })
-      if (revenueRecord) {
-        revenueRecord.total_revenue -= order.total_price
-        await revenueRecord.save()
-      }
-    }
 
     if (order.user?.toString() !== _id?.toString()) {
       return res.status(HTTP_STATUS.FORBIDDEN).json({
         message: 'Bạn không có quyền hủy đơn hàng này.'
       })
     }
+
     if (order.status === messageOrder.ORDER_SUCESS && status === messageOrder.USER_CANCEL_ORDER) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
         message: 'Không thể hủy đơn hàng sau khi đã giao hàng thành công.'
@@ -303,14 +306,15 @@ export const updateOrderUserController = async (req, res) => {
         message: 'Không thể cập nhật trạng thái đơn hàng khi đang giao.'
       })
     }
-    if (
-      status === messageOrder.USER_RETURN_ORDER &&
-      (!order.deliveredAt || dayjs().diff(dayjs(order.deliveredAt), 'day') > 3)
-    ) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        message: 'Không thể trả hàng sau 3 ngày kể từ khi nhận hàng.'
-      })
+
+    if (status === messageOrder.USER_RETURN_ORDER) {
+      if (!order.canReturn) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          message: 'Không thể trả hàng sau 3 ngày kể từ khi nhận hàng.'
+        })
+      }
     }
+
     await order.save()
 
     return res.status(HTTP_STATUS.OK).json({
@@ -403,6 +407,7 @@ export const getAllOrdersForAdminController = async (req, res) => {
       })
       .populate('products.color', 'name color_code -_id')
       .populate('products.size', 'name -_id')
+      .sort({ createdAt: -1 })
 
     res.status(HTTP_STATUS.OK).json({
       message: 'Lấy tất cả đơn hàng thành công.',
@@ -415,6 +420,23 @@ export const getAllOrdersForAdminController = async (req, res) => {
     })
   }
 }
+
+export const getOrderCountsByStatusController = async (req, res) => {
+  try {
+    const counts = await Orders.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }])
+
+    res.status(HTTP_STATUS.OK).json({
+      message: 'Số lượng đơn hàng theo trạng thái',
+      counts
+    })
+  } catch (error) {
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi lấy số lượng đơn hàng theo trạng thái.',
+      error: error.message
+    })
+  }
+}
+
 export const updateOrderStatusByAdminController = async (req, res) => {
   const { id } = req.params
   const { status } = req.body
@@ -459,8 +481,11 @@ export const updateOrderStatusByAdminController = async (req, res) => {
     const previousStatus = order.status
     order.status = status
 
-    if (status === messageOrder.ORDER_SUCESS) {
+    //giao hàng thành công
+    if (status === messageOrder.ORDER_SUCESS && previousStatus !== messageOrder.ORDER_SUCESS) {
       order.deliveredAt = new Date()
+      const month = order.createdAt.getMonth() + 1
+      const year = order.createdAt.getFullYear()
       for (const item of order.products) {
         const product = await Products.findById(item.product)
         if (product) {
@@ -469,20 +494,6 @@ export const updateOrderStatusByAdminController = async (req, res) => {
           await product.save()
         }
       }
-    }
-
-    if (status === messageOrder.USER_RETURN_ORDER) {
-      if (!order.deliveredAt || dayjs().diff(dayjs(order.deliveredAt), 'day') > 3) {
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({
-          message: 'Không thể trả hàng sau 3 ngày kể từ khi nhận hàng.'
-        })
-      }
-    }
-
-    //giao hàng thành công
-    if (status === messageOrder.ORDER_SUCESS && previousStatus !== messageOrder.ORDER_SUCESS) {
-      const month = order.createdAt.getMonth() + 1
-      const year = order.createdAt.getFullYear()
 
       await Revenues.findOneAndUpdate(
         { year, month },
@@ -495,9 +506,7 @@ export const updateOrderStatusByAdminController = async (req, res) => {
     if (status === messageOrder.RETURN_ORDER_SUCCESS && previousStatus !== messageOrder.RETURN_ORDER_SUCCESS) {
       const month = order.createdAt.getMonth() + 1
       const year = order.createdAt.getFullYear()
-
       await Revenues.findOneAndUpdate({ year, month }, { $inc: { total_revenue: -order.total_price } }, { new: true })
-
       for (const item of order.products) {
         const product = await Products.findById(item.product)
         if (product) {
@@ -506,6 +515,10 @@ export const updateOrderStatusByAdminController = async (req, res) => {
           await product.save()
         }
       }
+    }
+    if (order?.deliveredAt && dayjs().diff(dayjs(order.deliveredAt), 'day') > 3) {
+      order.canReturn = false
+      await order.save()
     }
 
     await order.save()
@@ -699,6 +712,7 @@ export const listReturnOrdersController = async (req, res) => {
       })
       .populate('products.color', 'name color_code -_id')
       .populate('products.size', 'name -_id')
+      .sort({ createdAt: -1 })
 
     return res.status(HTTP_STATUS.OK).json({
       message: 'Danh sách đơn hàng trả hàng.',
