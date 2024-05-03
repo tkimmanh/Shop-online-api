@@ -9,6 +9,8 @@ import Revenues from '~/models/Revenues.model'
 import { default as Users } from '~/models/Users.model'
 import dayjs from 'dayjs'
 import { getStartEndOfDay, getStartEndOfMonth, getStartEndOfYear } from '~/utils/commons'
+import mongoose from 'mongoose'
+import TempTransactions from '~/models/TempTransaction.model'
 
 export const placeOrderController = async (req, res) => {
   const { _id } = req.user
@@ -17,7 +19,7 @@ export const placeOrderController = async (req, res) => {
   try {
     let user = await Users.findById(_id)
     if (!user.address || !user.phone || !user.full_name) {
-      return res.status(HTTP_STATUS.FORBIDDEN).json({
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
         message: 'Vui lòng cập nhật thông tin cá nhân trước khi đặt hàng.'
       })
     }
@@ -86,14 +88,23 @@ export const placeOrderController = async (req, res) => {
       totalPrice = totalPrice - (totalPrice * discount) / 100
     }
 
-    const newOrder = await Orders.create({
-      user: _id,
-      products: user.cart,
-      total_price: totalPrice,
-      discount: discount > 0 ? discount : undefined,
-      coupon: coupon_code || undefined
-    })
     if (payment_method === 'Thanh toán bằng thẻ tín dụng') {
+      const transactionRef = new mongoose.Types.ObjectId()
+      const tempCart = user.cart.map((item) => ({
+        product: item.product,
+        quantity: item.quantity,
+        color: item.color || null,
+        size: item.size || null
+      }))
+      await TempTransactions.create({
+        ref: transactionRef,
+        user: _id,
+        cart: tempCart,
+        totalPrice: totalPrice,
+        payment_method: 'Thanh toán khi nhận hàng',
+        status: 'pending'
+      })
+
       const vnpay = new VNPay({
         tmnCode: '8F1UD35C',
         secureSecret: 'KLWBJBXARMRZQIMXBFFNSZUHJLNHRDWK'
@@ -102,19 +113,29 @@ export const placeOrderController = async (req, res) => {
       const urlString = vnpay.buildPaymentUrl({
         vnp_Amount: totalPrice,
         vnp_IpAddr: '1.1.1.1',
-        vnp_TxnRef: newOrder._id.toString(),
-        vnp_OrderInfo: `Thanh toán đơn hàng `,
+        vnp_TxnRef: transactionRef.toString(),
+        vnp_OrderInfo: 'Thanh toán đơn hàng',
         vnp_OrderType: 'other',
         vnp_ReturnUrl: returnUrl
       })
       return res.json({ paymentUrl: urlString })
     }
 
+    const newOrder = await Orders.create({
+      user: _id,
+      products: user.cart,
+      total_price: totalPrice,
+      discount: discount > 0 ? discount : undefined,
+      coupon: coupon_code || undefined
+    })
+
     user.cart = []
+
     await user.save()
 
     res.status(HTTP_STATUS.OK).json({
-      message: messageOrder.ORDER_START
+      message: messageOrder.ORDER_START,
+      order: newOrder
     })
   } catch (error) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
@@ -123,6 +144,59 @@ export const placeOrderController = async (req, res) => {
     })
   }
 }
+
+export const paymentSuccessController = async (req, res) => {
+  const vnp_Params = req.query
+  const transactionRef = vnp_Params['vnp_TxnRef']
+  const responseCode = vnp_Params['vnp_ResponseCode']
+
+  try {
+    if (responseCode !== '00') {
+      return null
+    }
+
+    const tempTransaction = await TempTransactions.findOne({
+      ref: transactionRef,
+      status: 'pending'
+    })
+
+    if (!tempTransaction) {
+      return null
+    }
+
+    const newOrder = await Orders.create({
+      user: tempTransaction.user,
+      products: tempTransaction.cart.map((item) => ({
+        product: item.product,
+        quantity: item.quantity,
+        color: item.color,
+        size: item.size
+      })),
+      total_price: tempTransaction.totalPrice,
+      payment_method: 'Thanh toán bằng thẻ tín dụng',
+      status_payment: 'Đã thanh toán bằng thẻ tín dụng'
+    })
+
+    await TempTransactions.findByIdAndUpdate(tempTransaction._id, {
+      status: 'processed'
+    })
+
+    await Users.findByIdAndUpdate(tempTransaction.user, {
+      $set: { cart: [] }
+    })
+
+    res.status(HTTP_STATUS.OK).json({
+      message: 'Thanh toán thành công và đơn hàng đã được tạo.',
+      order: newOrder
+    })
+  } catch (error) {
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: 'Có lỗi xảy ra khi xử lý thanh toán thành công.',
+      error: error.message
+    })
+  }
+}
+
 export const applyCouponController = async (req, res) => {
   const { coupon_code, cartItems } = req.body
   try {
@@ -156,23 +230,6 @@ export const applyCouponController = async (req, res) => {
       message: 'Có lỗi xảy ra',
       error: error.message
     })
-  }
-}
-export const paymentSuccessController = async (req, res) => {
-  var vnp_Params = req.query
-  var orderId = vnp_Params['vnp_TxnRef']
-
-  const order = await Orders.findById(orderId)
-  if (order) {
-    order.status_payment = 'Đã thanh toán bằng thẻ tín dụng'
-    await order.save()
-    const user = await Users.findById(order.user)
-    if (user) {
-      user.cart = []
-      await user.save()
-    }
-  } else {
-    res.status(HTTP_STATUS.NOT_FOUND).send('Đơn hàng không tồn tại')
   }
 }
 export const listUserOrdersController = async (req, res) => {
@@ -308,7 +365,7 @@ export const updateOrderUserController = async (req, res) => {
     }
 
     if (status === messageOrder.USER_RETURN_ORDER) {
-      if (!order.canReturn) {
+      if (dayjs().diff(dayjs(order.deliveredAt), 'day') > 3) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           message: 'Không thể trả hàng sau 3 ngày kể từ khi nhận hàng.'
         })
@@ -608,9 +665,7 @@ export const getTopSellingCategoriesController = async (req, res) => {
         categories: topSellingCategories
       })
     } else {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        message: 'Không tìm thấy sản phẩm bán chạy trong các danh mục.'
-      })
+      return null
     }
   } catch (error) {
     console.error('Error fetching top selling categories:', error)

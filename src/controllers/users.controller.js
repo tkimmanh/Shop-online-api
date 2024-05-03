@@ -8,6 +8,7 @@ import Users from '~/models/Users.model'
 import { generateToken } from '~/utils/jwt'
 import axios from 'axios'
 import sendEmail from '~/utils/mail'
+import mongoose from 'mongoose'
 
 export const createUserController = async (req, res) => {
   try {
@@ -186,27 +187,25 @@ export const addToCartController = async (req, res) => {
         message: 'Số lượng sản phẩm không đủ.'
       })
     }
-    if (product.quantity < quantity) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        message: 'Sản phẩm hiện đã hết hàng.'
-      })
-    }
+    color_id = color_id && mongoose.Types.ObjectId.isValid(color_id) ? new mongoose.Types.ObjectId(color_id) : null
+    size_id = size_id && mongoose.Types.ObjectId.isValid(size_id) ? new mongoose.Types.ObjectId(size_id) : null
+
     if (!color_id && product.colors.length > 0) {
-      color_id = product.colors[0]._id?.toString()
+      color_id = product.colors[0]._id
     }
     if (!size_id && product.sizes.length > 0) {
-      size_id = product.sizes[0]._id?.toString()
+      size_id = product.sizes[0]._id
     }
 
     let itemIndex = user.cart.findIndex(
       (item) =>
-        item.product?.toString() === product_id &&
-        item.color?.toString() === color_id &&
-        item.size?.toString() === size_id
+        item.product.toString() === product_id &&
+        (!color_id || item.color.toString() === color_id) &&
+        (!size_id || item.size.toString() === size_id)
     )
 
     if (itemIndex > -1) {
-      user.cart[itemIndex].quantity += 1
+      user.cart[itemIndex].quantity += quantity
     } else {
       user.cart.push({
         product: product_id,
@@ -220,24 +219,13 @@ export const addToCartController = async (req, res) => {
       message: 'Đã thêm sản phẩm vào giỏ hàng'
     })
   } catch (error) {
+    console.log('error:', error)
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng'
     })
   }
 }
-export const saveUserToken = async (req, res) => {
-  const { token } = req.body
-  const userId = req.user._id
 
-  try {
-    const user = await Users.findById(userId)
-    user.deviceToken = token
-    await user.save()
-    res.status(200).json({ message: 'Lưu token thành công' })
-  } catch (error) {
-    res.status(500).json({ message: 'Có lỗi xảy ra khi lưu token', error: error.message })
-  }
-}
 export const getCurrentUserController = async (req, res) => {
   const { _id } = req.user
   try {

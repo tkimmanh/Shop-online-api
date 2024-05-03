@@ -13,12 +13,24 @@ export const createProductController = async (req, res) => {
   try {
     const { title, description, price, category } = req.body
     let { colors, sizes } = req.body
-
-    colors = colors?.split(',')
-    sizes = sizes?.split(',')
-
-    colors = colors?.map((color) => new mongoose.Types.ObjectId(color))
-    sizes = sizes?.map((size) => new mongoose.Types.ObjectId(size))
+    colors = colors
+      ? colors
+          .split(',')
+          .map((color) => color.trim())
+          .filter((color) => color)
+      : []
+    sizes = sizes
+      ? sizes
+          .split(',')
+          .map((size) => size.trim())
+          .filter((size) => size)
+      : []
+    if (colors && colors.length > 0) {
+      colors = colors?.map((color) => new mongoose.Types.ObjectId(color))
+    }
+    if (sizes && sizes.length > 0) {
+      sizes = sizes?.map((size) => new mongoose.Types.ObjectId(size))
+    }
 
     if (!title || !description || !price || !category) {
       return res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json({
