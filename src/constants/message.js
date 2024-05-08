@@ -53,3 +53,17 @@ export const USER_MESSAGE = {
   USER_NOT_FOUND: 'Người dùng không tồn tại',
   USER_LOGIN_SUCCESS: 'Đăng nhập thành công!'
 }
+export const TOPIC_MESSAGE = {
+  TOPIC_IS_REQUIRED: 'Đầu vào bị thiếu hoặc không hợp lệ',
+  TOPIC_IS_NOT_FOUND: 'Chủ đề không tồn tại',
+  TOPIC_GET_ALL: 'Danh sách tất cả chủ đề',
+  TOPIC_GET_ALL_FAILED: 'Gọi danh sách tất cả chủ đề thất bại',
+  TOPIC_GET_ONE: 'Gọi một chủ đề thành công',
+  TOPIC_GET_ONE_FAILED: 'Chủ đề không tồn tại',
+  TOPIC_CREATED: 'Thêm mới chủ đề thành công',
+  TOPIC_UPDATED: 'Cập nhật chủ đề thành công',
+  TOPIC_DELETED: 'Xóa chủ đề thành công',
+  TOPIC_CREATE_FAILED: 'Thêm mới chủ đề thất bại',
+  TOPIC_UPDATE_FAILED: 'Cập nhật chủ đề thất bại',
+  TOPIC_DELETE_FAILED: 'Xóa chủ đề mới chủ đề thất bại'
+}
