@@ -36,6 +36,7 @@
     "randombytes": "^2.1.0",
     "sharp": "^0.33.2",
     "slugify": "^1.6.6",
+    "socket.io": "^4.7.5",
     "vnpay": "^1.1.0"
   },
   "devDependencies": {

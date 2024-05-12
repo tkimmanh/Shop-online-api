@@ -1,33 +1,28 @@
 import { Schema, model } from 'mongoose'
 
+const orderDetail = new Schema(
+  {
+    product: {
+      type: Schema.Types.ObjectId,
+      ref: 'Products'
+    },
+    name: String,
+    price: Number,
+    image: String,
+    quantity: Number,
+    color_name: String,
+    size_name: String
+  },
+  { _id: false }
+)
+
 const ordersSchema = new Schema(
   {
     user: {
       type: Schema.Types.ObjectId,
       ref: 'Users'
     },
-    products: [
-      {
-        product: {
-          type: Schema.Types.ObjectId,
-          ref: 'Products'
-        },
-        quantity: Number,
-        color: {
-          type: Schema.Types.ObjectId,
-          ref: 'Colors'
-        },
-        size: {
-          type: Schema.Types.ObjectId,
-          ref: 'Sizes'
-        },
-        category: {
-          type: Schema.Types.ObjectId,
-          ref: 'Categories'
-        }
-      },
-      { _id: false }
-    ],
+    products: [orderDetail],
     status: {
       type: String,
       default: 'Chờ xác nhận'
@@ -52,7 +47,6 @@ const ordersSchema = new Schema(
       default: 'Thanh toán khi nhận hàng',
       enum: ['Thanh toán khi nhận hàng', 'Thanh toán bằng thẻ tín dụng']
     },
-
     deliveredAt: {
       type: Date,
       default: null

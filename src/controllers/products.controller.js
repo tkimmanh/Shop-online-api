@@ -7,29 +7,30 @@ import Colors from '~/models/Colors.models'
 import Products from '~/models/Products.model'
 import Review from '~/models/Reviews.model'
 import Sizes from '~/models/Sizes.model'
+import Users from '~/models/Users.model'
 import { deleteImageOnCloudinary } from '~/utils/cloudinary'
 
 export const createProductController = async (req, res) => {
   try {
     const { title, description, price, category } = req.body
     let { colors, sizes } = req.body
-    colors = colors
-      ? colors
-          .split(',')
-          .map((color) => color.trim())
-          .filter((color) => color)
-      : []
-    sizes = sizes
-      ? sizes
-          .split(',')
-          .map((size) => size.trim())
-          .filter((size) => size)
-      : []
-    if (colors && colors.length > 0) {
-      colors = colors?.map((color) => new mongoose.Types.ObjectId(color))
+
+    let colorIds = []
+    if (colors && typeof colors === 'string') {
+      colorIds = colors
+        .split(',')
+        .map((color) => color.trim())
+        .filter((color) => color)
+        .map((color) => new mongoose.Types.ObjectId(color))
     }
-    if (sizes && sizes.length > 0) {
-      sizes = sizes?.map((size) => new mongoose.Types.ObjectId(size))
+
+    let sizeIds = []
+    if (sizes && typeof sizes === 'string') {
+      sizeIds = sizes
+        .split(',')
+        .map((size) => size.trim())
+        .filter((size) => size)
+        .map((size) => new mongoose.Types.ObjectId(size))
     }
 
     if (!title || !description || !price || !category) {
@@ -55,12 +56,15 @@ export const createProductController = async (req, res) => {
         public_id: file.filename
       }))
     const newProduct = await Products.create({
-      ...req.body,
+      title,
+      description,
+      price,
+      category,
       slug: slugify(title),
       thumbnail,
       images,
-      colors,
-      sizes
+      colors: colorIds,
+      sizes: sizeIds
     })
 
     return res.status(HTTP_STATUS.OK).json({
@@ -84,13 +88,18 @@ export const updateProductController = async (req, res) => {
       message: PRODUCTS_MESSAGE.PRODUCTS_NOT_FOUND
     })
   }
+  const colorIds = colors
+    .split(',')
+    .map((color) => color.trim())
+    .filter((color) => color)
+    .map((color) => new mongoose.Types.ObjectId(color))
+  const sizeIds = sizes
+    .split(',')
+    .map((size) => size.trim())
+    .filter((size) => size)
+    .map((size) => new mongoose.Types.ObjectId(size))
 
   try {
-    colors = colors?.split(',')
-    sizes = sizes?.split(',')
-    colors = colors?.map((color) => new mongoose.Types.ObjectId(color))
-    sizes = sizes?.map((size) => new mongoose.Types.ObjectId(size))
-
     const productToUpdate = await Products.findById(id)
     if (!productToUpdate) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({
@@ -130,7 +139,7 @@ export const updateProductController = async (req, res) => {
 
     const updateProduct = await Products.findOneAndUpdate(
       { _id: id },
-      { ...req.body, thumbnail: updatedThumbnail, images: updatedImages, colors, sizes },
+      { ...req.body, thumbnail: updatedThumbnail, images: updatedImages, colors: colorIds, sizes: sizeIds },
       { new: true }
     )
     if (updateProduct) {
@@ -173,6 +182,21 @@ export const deleteProductController = async (req, res) => {
       }
     }
 
+    const users = await Users.find({ 'cart.product': id })
+    await Promise.all(
+      users.map(async (user) => {
+        user.cart = user.cart.filter((item) => item.product.toString() !== id)
+        await user.save()
+      })
+    )
+    const usersWishlist = await Users.find({ wishlist: id })
+    await Promise.all(
+      usersWishlist.map(async (user) => {
+        user.wishlist = user.wishlist.filter((item) => item.toString() !== id)
+        await user.save()
+      })
+    )
+
     await Products.findByIdAndDelete(id)
 
     res.status(HTTP_STATUS.OK).json({
@@ -180,6 +204,33 @@ export const deleteProductController = async (req, res) => {
     })
   } catch (error) {
     console.log('error:', error)
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      message: PRODUCTS_MESSAGE.PRODUCT_DELETED_FAILED
+    })
+  }
+}
+
+export const setStatusProductController = async (req, res) => {
+  const { id } = req.params
+  const { status } = req.body
+  if (!id) {
+    return res.status(HTTP_STATUS.NOT_FOUND).json({
+      message: PRODUCTS_MESSAGE.PRODUCTS_NOT_FOUND
+    })
+  }
+  try {
+    const product = await Products.findById({ _id: id })
+    if (!product) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
+        message: PRODUCTS_MESSAGE.PRODUCTS_NOT_FOUND
+      })
+    }
+
+    await Products.findByIdAndUpdate({ _id: id }, { status: status })
+    res.status(HTTP_STATUS.OK).json({
+      message: PRODUCTS_MESSAGE.PRODUCT_DELETED
+    })
+  } catch (error) {
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: PRODUCTS_MESSAGE.PRODUCT_DELETED_FAILED
     })
@@ -227,13 +278,16 @@ export const productDetailsController = async (req, res) => {
 export const getAllProductController = async (req, res) => {
   try {
     const { title, sort, priceFrom, priceTo, price, color, sizes, category } = req.query
+    let { status } = req.query
     const page = parseInt(req.query.page, 10) || 1
     const limit = parseInt(req.query.limit, 10) || 10
+
+    status = status === 'false' ? false : true
 
     // phân trang page=1&limit=10
     const skip = (page - 1) * limit
 
-    let query = Products.find()
+    let query = Products.find({ status: status })
     // Tìm kiếm theo title : products?title=name
     if (title) {
       query = query.where('title', new RegExp(req.query.title, 'i'))
@@ -312,6 +366,7 @@ export const getAllProductController = async (req, res) => {
       counts
     })
   } catch (error) {
+    console.log('error:', error)
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: PRODUCTS_MESSAGE.PRODUCT_GET_ERROR
     })

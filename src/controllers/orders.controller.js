@@ -11,13 +11,18 @@ import dayjs from 'dayjs'
 import { getStartEndOfDay, getStartEndOfMonth, getStartEndOfYear } from '~/utils/commons'
 import mongoose from 'mongoose'
 import TempTransactions from '~/models/TempTransaction.model'
+import Colors from '~/models/Colors.models'
+import Sizes from '~/models/Sizes.model'
 
 export const placeOrderController = async (req, res) => {
   const { _id } = req.user
   const { payment_method, address, phone, full_name, coupon_code } = req.body
   let discount = 0
   try {
-    let user = await Users.findById(_id)
+    let user = await Users.findById(_id).populate({
+      path: 'cart.product'
+    })
+
     if (!user.address || !user.phone || !user.full_name) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({
         message: 'Vui lòng cập nhật thông tin cá nhân trước khi đặt hàng.'
@@ -46,6 +51,27 @@ export const placeOrderController = async (req, res) => {
         message: 'Giỏ hàng của bạn đang trống.'
       })
     }
+
+    const orderItems = await Promise.all(
+      user.cart.map(async (item) => {
+        const color = item.color ? await Colors.findById(item.color) : null
+        const size = item.size ? await Sizes.findById(item.size) : null
+
+        return {
+          product: item.product._id,
+          name: item.product.title,
+          price: item.product.price,
+          image: item.product.thumbnail.url,
+          quantity: item.quantity,
+          color: item.color,
+          size: item.size,
+          color_name: color ? color.name : 'No Color',
+          size_name: size ? size.name : 'No Size',
+          category: item.product.category ? item.product.category._id : 'No Category'
+        }
+      })
+    )
+
     let updateInfo = {}
     if (!user.address && address) updateInfo.address = address
     if (!user.phone && phone) updateInfo.phone = phone
@@ -70,6 +96,30 @@ export const placeOrderController = async (req, res) => {
           break
         }
         totalPrice += product.price * item.quantity
+        item.product_details = {
+          name: product.name,
+          price: product.price
+        }
+      }
+    }
+
+    let productQuantities = {}
+    user.cart.forEach((item) => {
+      const key = item.product._id.toString()
+      if (productQuantities[key]) {
+        productQuantities[key] += item.quantity
+      } else {
+        productQuantities[key] = item.quantity
+      }
+    })
+
+    // Kiểm tra số lượng tồn kho
+    for (const [productId, totalQuantity] of Object.entries(productQuantities)) {
+      const product = await Products.findById(productId)
+      if (!product || product.quantity < totalQuantity) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          message: `Sản phẩm ${product.title} không đủ hàng. Chỉ còn lại ${product.quantity} sản phẩm.`
+        })
       }
     }
 
@@ -84,6 +134,7 @@ export const placeOrderController = async (req, res) => {
         message: 'Số lượng sản phẩm yêu cầu vượt quá số lượng có sẵn.'
       })
     }
+
     if (discount > 0) {
       totalPrice = totalPrice - (totalPrice * discount) / 100
     }
@@ -123,10 +174,10 @@ export const placeOrderController = async (req, res) => {
 
     const newOrder = await Orders.create({
       user: _id,
-      products: user.cart,
+      products: orderItems,
       total_price: totalPrice,
       discount: discount > 0 ? discount : undefined,
-      coupon: coupon_code || undefined
+      coupon: coupon_code || '(Trống)'
     })
 
     user.cart = []
@@ -158,20 +209,36 @@ export const paymentSuccessController = async (req, res) => {
     const tempTransaction = await TempTransactions.findOne({
       ref: transactionRef,
       status: 'pending'
+    }).populate({
+      path: 'cart.product'
     })
 
     if (!tempTransaction) {
       return null
     }
 
+    const orderItems = await Promise.all(
+      tempTransaction.cart.map(async (item) => {
+        const color = item.color ? await Colors.findById(item.color) : null
+        const size = item.size ? await Sizes.findById(item.size) : null
+
+        return {
+          product: item.product._id,
+          name: item.product.title,
+          price: item.product.price,
+          image: item.product.thumbnail.url,
+          quantity: item.quantity,
+          color: item.color,
+          size: item.size,
+          color_name: color ? color.name : 'No Color',
+          size_name: size ? size.name : 'No Size',
+          category: item.product.category ? item.product.category._id : 'No Category'
+        }
+      })
+    )
     const newOrder = await Orders.create({
       user: tempTransaction.user,
-      products: tempTransaction.cart.map((item) => ({
-        product: item.product,
-        quantity: item.quantity,
-        color: item.color,
-        size: item.size
-      })),
+      products: orderItems,
       total_price: tempTransaction.totalPrice,
       payment_method: 'Thanh toán bằng thẻ tín dụng',
       status_payment: 'Đã thanh toán bằng thẻ tín dụng'
@@ -226,6 +293,7 @@ export const applyCouponController = async (req, res) => {
       discount
     })
   } catch (error) {
+    console.log('error:', error)
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra',
       error: error.message
@@ -267,15 +335,28 @@ export const listUserOrdersController = async (req, res) => {
   try {
     const orders = await Orders.find(queryOptions)
       .populate('user', 'phone full_name address email')
-      .populate('products.product', 'title price thumbnail description')
-      .populate('products.color', 'name color_code')
-      .populate('products.size', 'name')
       .sort({ createdAt: -1 })
+
+    orders.forEach((order) => {
+      order.products = order.products.map((item) => {
+        if (!item.product) {
+          return {
+            ...item,
+            product: {
+              title: 'Sản phẩm hiện đã không còn trong của hàng'
+            }
+          }
+        }
+        return item
+      })
+    })
+
     res.status(HTTP_STATUS.OK).json({
       message: 'Danh sách đơn hàng đã đặt',
       orders
     })
   } catch (error) {
+    console.log('error:', error)
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra',
       error: error.message
@@ -285,31 +366,10 @@ export const listUserOrdersController = async (req, res) => {
 export const getOrderDetailController = async (req, res) => {
   const { id } = req.params
   try {
-    const order = await Orders.findById({ _id: id })
-      .populate({
-        path: 'user',
-        select: 'phone full_name address email'
-      })
-      .populate({
-        path: 'products.product',
-        model: 'Products',
-        populate: {
-          path: 'category',
-          model: 'Categories',
-          select: 'title -_id'
-        },
-        select: '-colors -sizes -_id -sold'
-      })
-      .populate({
-        path: 'products.color',
-        model: 'Colors',
-        select: 'name -_id'
-      })
-      .populate({
-        path: 'products.size',
-        model: 'Sizes',
-        select: 'name -_id'
-      })
+    const order = await Orders.findById({ _id: id }).populate({
+      path: 'user',
+      select: 'phone full_name address email'
+    })
 
     if (!order) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({
@@ -372,13 +432,12 @@ export const updateOrderUserController = async (req, res) => {
       }
     }
 
-    await order.save()
-
     return res.status(HTTP_STATUS.OK).json({
       message: `Đơn hàng của bạn đã được cập nhật thành "${status}" thành công.`,
       order
     })
   } catch (error) {
+    console.log('error:', error)
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra khi cập nhật trạng thái đơn hàng.',
       error: error.message
@@ -453,17 +512,7 @@ export const getAllOrdersForAdminController = async (req, res) => {
         path: 'user',
         select: 'full_name email phone address'
       })
-      .populate({
-        path: 'products.product',
-        select: 'title price',
-        populate: {
-          path: 'category',
-          model: 'Categories',
-          select: 'title -_id'
-        }
-      })
-      .populate('products.color', 'name color_code -_id')
-      .populate('products.size', 'name -_id')
+
       .sort({ createdAt: -1 })
 
     res.status(HTTP_STATUS.OK).json({
@@ -471,6 +520,7 @@ export const getAllOrdersForAdminController = async (req, res) => {
       orders
     })
   } catch (error) {
+    console.log('error:', error)
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra khi lấy thông tin đơn hàng.',
       error: error.message
@@ -560,19 +610,26 @@ export const updateOrderStatusByAdminController = async (req, res) => {
     }
 
     //đơn hàng trả hàng thành công
-    if (status === messageOrder.RETURN_ORDER_SUCCESS && previousStatus !== messageOrder.RETURN_ORDER_SUCCESS) {
+    if (status === messageOrder.ORDER_SUCESS && previousStatus !== messageOrder.ORDER_SUCESS) {
+      order.deliveredAt = new Date()
       const month = order.createdAt.getMonth() + 1
       const year = order.createdAt.getFullYear()
-      await Revenues.findOneAndUpdate({ year, month }, { $inc: { total_revenue: -order.total_price } }, { new: true })
       for (const item of order.products) {
         const product = await Products.findById(item.product)
         if (product) {
-          product.quantity += item.quantity
-          product.sold -= item.quantity
+          product.quantity -= item.quantity
+          product.sold += item.quantity
           await product.save()
         }
       }
+
+      await Revenues.findOneAndUpdate(
+        { year, month },
+        { $inc: { total_revenue: order.total_price } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      )
     }
+
     if (order?.deliveredAt && dayjs().diff(dayjs(order.deliveredAt), 'day') > 3) {
       order.canReturn = false
       await order.save()
@@ -585,6 +642,7 @@ export const updateOrderStatusByAdminController = async (req, res) => {
       order
     })
   } catch (error) {
+    console.log('error:', error)
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra khi cập nhật trạng thái đơn hàng.',
       error: error.message

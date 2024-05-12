@@ -38,7 +38,8 @@ const productsSchema = new Schema(
       public_id: String
     },
     status: {
-      type: Boolean
+      type: Boolean,
+      default: true
     },
     images: [
       {

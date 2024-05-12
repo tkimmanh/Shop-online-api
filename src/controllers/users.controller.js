@@ -8,7 +8,6 @@ import Users from '~/models/Users.model'
 import { generateToken } from '~/utils/jwt'
 import axios from 'axios'
 import sendEmail from '~/utils/mail'
-import mongoose from 'mongoose'
 
 export const createUserController = async (req, res) => {
   try {
@@ -64,7 +63,6 @@ export const createUserController = async (req, res) => {
     })
   }
 }
-
 export const signInController = async (req, res) => {
   try {
     const { email, password } = req.body
@@ -171,6 +169,7 @@ export const oauthGoogleController = async (req, res) => {
     })
   }
 }
+
 export const addToCartController = async (req, res) => {
   const { _id } = req.user
   let { product_id, color_id, size_id, quantity = 1 } = req.body
@@ -187,22 +186,25 @@ export const addToCartController = async (req, res) => {
         message: 'Số lượng sản phẩm không đủ.'
       })
     }
-    color_id = color_id && mongoose.Types.ObjectId.isValid(color_id) ? new mongoose.Types.ObjectId(color_id) : null
-    size_id = size_id && mongoose.Types.ObjectId.isValid(size_id) ? new mongoose.Types.ObjectId(size_id) : null
 
     if (!color_id && product.colors.length > 0) {
-      color_id = product.colors[0]._id
+      color_id = product.colors[0]._id.toString()
     }
     if (!size_id && product.sizes.length > 0) {
-      size_id = product.sizes[0]._id
+      size_id = product.sizes[0]._id.toString()
     }
 
-    let itemIndex = user.cart.findIndex(
-      (item) =>
+    color_id = color_id ? color_id.toString() : null
+    size_id = size_id ? size_id.toString() : null
+    product_id = product_id.toString()
+
+    let itemIndex = user.cart.findIndex((item) => {
+      return (
         item.product.toString() === product_id &&
-        (!color_id || item.color.toString() === color_id) &&
-        (!size_id || item.size.toString() === size_id)
-    )
+        (item.color ? item.color.toString() === color_id : !color_id) &&
+        (item.size ? item.size.toString() === size_id : !size_id)
+      )
+    })
 
     if (itemIndex > -1) {
       user.cart[itemIndex].quantity += quantity
@@ -214,9 +216,11 @@ export const addToCartController = async (req, res) => {
         quantity: quantity
       })
     }
+
     await user.save()
     res.status(HTTP_STATUS.OK).json({
-      message: 'Đã thêm sản phẩm vào giỏ hàng'
+      message: 'Đã thêm sản phẩm vào giỏ hàng',
+      cart: user.cart
     })
   } catch (error) {
     console.log('error:', error)
@@ -600,6 +604,7 @@ export const getWishlistController = async (req, res) => {
   try {
     const user = await Users.findById(_id).populate({
       path: 'wishlist',
+      match: { status: true },
       model: 'Products'
     })
 
