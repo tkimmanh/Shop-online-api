@@ -11,6 +11,8 @@ import routerUsers from './routes/users.routes'
 import routerOrder from './routes/orders.routes'
 import couponRouter from '~/routes/coupons.routes'
 import routerTopics from './routes/topics.routes'
+import routerPosts from './routes/posts.routes'
+import routerComments from './routes/comments.routes'
 
 config()
 const app = express()
@@ -32,7 +34,9 @@ app.use('/sizes', routerSizes)
 app.use('/colors', routerColors)
 app.use('/order', routerOrder)
 app.use('/coupon', couponRouter)
-app.use('/topic', routerTopics)
+app.use('/topics', routerTopics)
+app.use('/posts', routerPosts)
+app.use('/comments', routerComments)
 
 app.listen(process.env.LOCAL_PORT, () => {
   console.log(`Server is running on PORT ${process.env.LOCAL_PORT}`)

@@ -41,31 +41,31 @@ export const getAllTopicController = async (req, res, next) => {
 }
 
 export const updateTopicController = async (req, res) => {
-    const { id } = req.params;
+    const { id } = req.params
     if (!req.body) {
         return res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json({
             message: TOPIC_MESSAGE.TOPIC_IS_REQUIRED
-        });
+        })
     }
     if (!id) {
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
             message: TOPIC_MESSAGE.TOPIC_IS_NOT_FOUND
-        });
+        })
     }
     try {
-        const updatedTopic = await Topics.findByIdAndUpdate(id, req.body, {
+        const updatedTopic = await Topics.findByIdAndUpdate({_id:id}, req.body, {
             new: true
-        });
+        })
         if (updatedTopic) {
             return res.status(HTTP_STATUS.OK).json({
                 message: TOPIC_MESSAGE.TOPIC_UPDATED,
                 updatedTopic
-            });
+            })
         }
     } catch (error) {
         return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
             message: TOPIC_MESSAGE.TOPIC_UPDATE_FAILED
-        });
+        })
     }
 }
 
@@ -107,7 +107,7 @@ export const getOneTopicController = async (req, res) => {
         }
     } catch (error) {
         return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-            message: TOPIC_MESSAGE.TOPIC_UPDATE_FAILED
+            message: TOPIC_MESSAGE.TOPIC_GET_ONE_FAILED
         });
     }
 };
