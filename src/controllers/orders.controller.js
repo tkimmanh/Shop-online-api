@@ -840,17 +840,7 @@ export const listReturnOrdersController = async (req, res) => {
         path: 'user',
         select: 'full_name email phone address'
       })
-      .populate({
-        path: 'products.product',
-        select: 'title price thumbnail description',
-        populate: {
-          path: 'category',
-          model: 'Categories',
-          select: 'title -_id'
-        }
-      })
-      .populate('products.color', 'name color_code -_id')
-      .populate('products.size', 'name -_id')
+
       .sort({ createdAt: -1 })
 
     return res.status(HTTP_STATUS.OK).json({
