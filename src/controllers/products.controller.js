@@ -12,7 +12,7 @@ import { deleteImageOnCloudinary } from '~/utils/cloudinary'
 
 export const createProductController = async (req, res) => {
   try {
-    const { title, description, price, category } = req.body
+    const { title, description, price, category, quantity } = req.body
     let { colors, sizes } = req.body
 
     let colorIds = []
@@ -33,7 +33,7 @@ export const createProductController = async (req, res) => {
         .map((size) => new mongoose.Types.ObjectId(size))
     }
 
-    if (!title || !description || !price || !category) {
+    if (!title || !description || !price || !category || !quantity) {
       return res.status(HTTP_STATUS.UNPROCESSABLE_ENTITY).json({
         message: PRODUCTS_MESSAGE.PRODUCTS_IS_REQUIRED
       })
@@ -60,6 +60,7 @@ export const createProductController = async (req, res) => {
       description,
       price,
       category,
+      quantity,
       slug: slugify(title),
       thumbnail,
       images,

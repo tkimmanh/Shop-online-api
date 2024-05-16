@@ -13,6 +13,7 @@ import mongoose from 'mongoose'
 import TempTransactions from '~/models/TempTransaction.model'
 import Colors from '~/models/Colors.models'
 import Sizes from '~/models/Sizes.model'
+import Notification from '~/models/Notification.model'
 
 export const placeOrderController = async (req, res) => {
   const { _id } = req.user
@@ -437,7 +438,6 @@ export const updateOrderUserController = async (req, res) => {
       order
     })
   } catch (error) {
-    console.log('error:', error)
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra khi cập nhật trạng thái đơn hàng.',
       error: error.message
@@ -634,6 +634,32 @@ export const updateOrderStatusByAdminController = async (req, res) => {
       order.canReturn = false
       await order.save()
     }
+
+    /*
+     * Gửi thông báo cho người dùng khi trạng thái đơn hàng thay đổi
+     */
+    const firstProduct = order.products[0].product
+
+    const io = req.app.get('io')
+    const userSockets = req.app.get('userSockets')
+
+    const notification = {
+      user_id: order.user,
+      product_title: firstProduct?.title,
+      product_thumbnail: firstProduct?.thumbnail?.url,
+      message: `Đơn hàng của bạn đã được cập nhật thành "${status}"`,
+      read: false
+    }
+
+    const userSocketId = userSockets.get(order.user.toString())
+    if (userSocketId) {
+      io.to(userSocketId).emit('notification', notification)
+    }
+    io.emit('notification', notification)
+    await Notification.create(notification)
+    /*
+     * Gửi thông báo cho người dùng khi trạng thái đơn hàng thay đổi
+     */
 
     await order.save()
 
