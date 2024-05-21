@@ -14,6 +14,7 @@ import TempTransactions from '~/models/TempTransaction.model'
 import Colors from '~/models/Colors.models'
 import Sizes from '~/models/Sizes.model'
 import Notification from '~/models/Notification.model'
+import Bill from '~/models/Bill.model'
 
 export const placeOrderController = async (req, res) => {
   const { _id } = req.user
@@ -201,7 +202,7 @@ export const paymentSuccessController = async (req, res) => {
   const vnp_Params = req.query
   const transactionRef = vnp_Params['vnp_TxnRef']
   const responseCode = vnp_Params['vnp_ResponseCode']
-
+  console.log('params payment success', vnp_Params)
   try {
     if (responseCode !== '00') {
       return null
@@ -237,12 +238,23 @@ export const paymentSuccessController = async (req, res) => {
         }
       })
     )
+
     const newOrder = await Orders.create({
       user: tempTransaction.user,
       products: orderItems,
       total_price: tempTransaction.totalPrice,
       payment_method: 'Thanh toán bằng thẻ tín dụng',
       status_payment: 'Đã thanh toán bằng thẻ tín dụng'
+    })
+    await Bill.create({
+      orderId: newOrder._id,
+      amount: tempTransaction.totalPrice,
+      bank: vnp_Params['vnp_BankCode'],
+      bankTransactionId: vnp_Params['vnp_BankTranNo'],
+      cardType: vnp_Params['vnp_CardType'],
+      orderInfo: vnp_Params['vnp_OrderInfo'],
+      paymentDate: vnp_Params['vnp_PayDate'],
+      transactionId: vnp_Params['vnp_TransactionNo']
     })
 
     await TempTransactions.findByIdAndUpdate(tempTransaction._id, {
@@ -258,6 +270,7 @@ export const paymentSuccessController = async (req, res) => {
       order: newOrder
     })
   } catch (error) {
+    console.log(error)
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       message: 'Có lỗi xảy ra khi xử lý thanh toán thành công.',
       error: error.message

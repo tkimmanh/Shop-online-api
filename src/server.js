@@ -12,6 +12,7 @@ import routerUsers from './routes/users.routes'
 import routerOrder from './routes/orders.routes'
 import couponRouter from '~/routes/coupons.routes'
 import notificationRouter from '~/routes/notification.routes'
+import routerBill from './routes/bill.routes'
 
 config()
 const app = express()
@@ -54,6 +55,7 @@ app.use('/sizes', routerSizes)
 app.use('/colors', routerColors)
 app.use('/order', routerOrder)
 app.use('/coupon', couponRouter)
+app.use('/bill', routerBill)
 app.use('/notify', notificationRouter)
 
 httpServer.listen(process.env.LOCAL_PORT, () => {
