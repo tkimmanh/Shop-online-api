@@ -53,3 +53,51 @@ export const USER_MESSAGE = {
   USER_NOT_FOUND: 'Người dùng không tồn tại',
   USER_LOGIN_SUCCESS: 'Đăng nhập thành công!'
 }
+export const TOPIC_MESSAGE = {
+  TOPIC_IS_REQUIRED: 'Đầu vào bị thiếu hoặc không hợp lệ',
+  TOPIC_IS_NOT_FOUND: 'Chủ đề không tồn tại',
+  TOPIC_GET_ALL: 'Danh sách tất cả chủ đề',
+  TOPIC_GET_ALL_FAILED: 'Gọi danh sách tất cả chủ đề thất bại',
+  TOPIC_GET_ONE: 'Gọi một chủ đề thành công',
+  TOPIC_GET_ONE_FAILED: 'Chủ đề không tồn tại',
+  TOPIC_CREATED: 'Thêm mới chủ đề thành công',
+  TOPIC_UPDATED: 'Cập nhật chủ đề thành công',
+  TOPIC_DELETED: 'Xóa chủ đề thành công',
+  TOPIC_CREATE_FAILED: 'Thêm mới chủ đề thất bại',
+  TOPIC_UPDATE_FAILED: 'Cập nhật chủ đề thất bại',
+  TOPIC_DELETE_FAILED: 'Xóa chủ đề mới chủ đề thất bại'
+}
+export const POSTS_MESSAGE = {
+  POSTS_IS_REQUIRED: 'Đầu vào bị thiếu hoặc không hợp lệ',
+  POSTS_CREATED: 'Thêm mới bài viết thành công',
+  POSTS_CREATED_FAILED: 'Thêm mới bài viết thất bại',
+  POSTS_NOT_FOUND: 'Bài viết không tồn tại',
+  POSTS_ERROR_UPLOAD_IMAGES: 'Không thể tải quá 5 hình ảnh',
+  POSTS_ERROR_UPLOAD_THUBMAIL: 'Không thể tải quá 1 hình ảnh',
+  POSTS_UPLOAD_IMAGE_FAILED: 'Thêm mới ảnh thất bại có lỗi xảy ra',
+  POSTS_GET_ALL: 'Danh sách bài viết',
+  POST_GET_ERROR: 'Gọi bài viết thất bại',
+  POST_DELETED: 'Xóa bài viết thành công',
+  POST_DELETED_FAILED: 'Xóa bài viết thất bại',
+  POST_UPDATED_FAILED: 'Cập nhật bài viết thất bại',
+  POST_UPDATED: 'Cập nhật bài viết thành công',
+  POST_GET_DETAILS: 'Gọi chi tiết bài viết thành công',
+  POST_PAGE_NOT_FOUND: 'Trang này không tồn tại',
+  POSTS_UPDATE_ERROR: 'Cập nhật bài viết thất bại'
+}
+
+export const COMMENTS_MESSAGE = {
+  COMMENTS_IS_REQUIRED: 'Đầu vào bị thiếu hoặc không hợp lệ',
+  COMMENTS_CREATED: 'Thêm mới bình luận thành công',
+  COMMENTS_CREATED_FAILED: 'Thêm mới bình luận thất bại',
+  COMMENTS_NOT_FOUND: 'Bình luận không tồn tại',
+  COMMENTS_GET_ALL: 'Danh sách bình luận',
+  COMMENT_GET_ERROR: 'Gọi bình luận thất bại',
+  COMMENT_DELETED: 'Xóa bình luận thành công',
+  COMMENT_DELETED_FAILED: 'Xóa bình luận thất bại',
+  COMMENT_UPDATED_FAILED: 'Cập nhật bình luận thất bại',
+  COMMENT_UPDATED: 'Cập nhật bình luận thành công',
+  COMMENT_GET_DETAILS: 'Gọi chi tiết bình luận thành công',
+  COMMENT_PAGE_NOT_FOUND: 'Trang này không tồn tại',
+  COMMENTS_UPDATE_ERROR: 'Cập nhật bình luận thất bại'
+}
