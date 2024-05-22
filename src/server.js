@@ -14,6 +14,8 @@ import couponRouter from '~/routes/coupons.routes'
 import routerTopics from './routes/topics.routes'
 import routerPosts from './routes/posts.routes'
 import routerComments from './routes/comments.routes'
+import notificationRouter from './routes/notification.routes'
+import routerBill from './routes/bill.routes'
 
 config()
 const app = express()
@@ -58,6 +60,8 @@ app.use('/order', routerOrder)
 app.use('/coupon', couponRouter)
 app.use('/topics', routerTopics)
 app.use('/posts', routerPosts)
+app.use('/bill', routerBill)
+app.use('/notify', notificationRouter)
 app.use('/comments', routerComments)
 
 httpServer.listen(process.env.LOCAL_PORT, () => {
