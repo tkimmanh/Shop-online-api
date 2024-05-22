@@ -182,6 +182,12 @@ export const placeOrderController = async (req, res) => {
       coupon: coupon_code || '(Trống)'
     })
 
+    if (newOrder) {
+      for (const item of orderItems) {
+        await Products.findByIdAndUpdate(item.product, { $inc: { quantity: -item.quantity } })
+      }
+    }
+
     user.cart = []
 
     await user.save()
@@ -246,6 +252,7 @@ export const paymentSuccessController = async (req, res) => {
       payment_method: 'Thanh toán bằng thẻ tín dụng',
       status_payment: 'Đã thanh toán bằng thẻ tín dụng'
     })
+
     await Bill.create({
       orderId: newOrder._id,
       amount: tempTransaction.totalPrice,
@@ -256,6 +263,12 @@ export const paymentSuccessController = async (req, res) => {
       paymentDate: vnp_Params['vnp_PayDate'],
       transactionId: vnp_Params['vnp_TransactionNo']
     })
+
+    if (newOrder) {
+      for (const item of orderItems) {
+        await Products.findByIdAndUpdate(item.product, { $inc: { quantity: -item.quantity } })
+      }
+    }
 
     await TempTransactions.findByIdAndUpdate(tempTransaction._id, {
       status: 'processed'
@@ -445,6 +458,11 @@ export const updateOrderUserController = async (req, res) => {
         })
       }
     }
+    if (status === messageOrder.USER_CANCEL_ORDER) {
+      for (const item of order.products) {
+        await Products.findByIdAndUpdate(item.product._id, { $inc: { quantity: item.quantity } })
+      }
+    }
 
     return res.status(HTTP_STATUS.OK).json({
       message: `Đơn hàng của bạn đã được cập nhật thành "${status}" thành công.`,
@@ -606,14 +624,16 @@ export const updateOrderStatusByAdminController = async (req, res) => {
       order.deliveredAt = new Date()
       const month = order.createdAt.getMonth() + 1
       const year = order.createdAt.getFullYear()
-      for (const item of order.products) {
-        const product = await Products.findById(item.product)
-        if (product) {
-          product.quantity -= item.quantity
-          product.sold += item.quantity
-          await product.save()
-        }
-      }
+
+      // cập nhật lại số lượng sản phẩm và doanh thu
+      // for (const item of order.products) {
+      //   const product = await Products.findById(item.product)
+      //   if (product) {
+      //     product.quantity -= item.quantity
+      //     product.sold += item.quantity
+      //     await product.save()
+      //   }
+      // }
 
       await Revenues.findOneAndUpdate(
         { year, month },
