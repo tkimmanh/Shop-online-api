@@ -607,6 +607,23 @@ export const updateOrderStatusByAdminController = async (req, res) => {
       })
     }
 
+    // nếu trả hàng thành công
+    if (status === messageOrder.RETURN_ORDER_SUCCESS) {
+      for (const item of order.products) {
+        console.log(item)
+        await Products.findByIdAndUpdate(item.product._id, { $inc: { quantity: item.quantity } })
+      }
+      const month = order.createdAt.getMonth() + 1
+      const year = order.createdAt.getFullYear()
+      await Revenues.findOneAndUpdate(
+        { year, month },
+        { $inc: { total_revenue: -order.total_price } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      )
+
+      order.deliveredAt = null
+    }
+
     if (
       order.status === messageOrder.ORDER_PEDDING &&
       (status === messageOrder.ORDER_WAIT_CONFIRM || status === messageOrder.ORDER_CONFIRM)
@@ -624,37 +641,6 @@ export const updateOrderStatusByAdminController = async (req, res) => {
       order.deliveredAt = new Date()
       const month = order.createdAt.getMonth() + 1
       const year = order.createdAt.getFullYear()
-
-      // cập nhật lại số lượng sản phẩm và doanh thu
-      // for (const item of order.products) {
-      //   const product = await Products.findById(item.product)
-      //   if (product) {
-      //     product.quantity -= item.quantity
-      //     product.sold += item.quantity
-      //     await product.save()
-      //   }
-      // }
-
-      await Revenues.findOneAndUpdate(
-        { year, month },
-        { $inc: { total_revenue: order.total_price } },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      )
-    }
-
-    //đơn hàng trả hàng thành công
-    if (status === messageOrder.ORDER_SUCESS && previousStatus !== messageOrder.ORDER_SUCESS) {
-      order.deliveredAt = new Date()
-      const month = order.createdAt.getMonth() + 1
-      const year = order.createdAt.getFullYear()
-      for (const item of order.products) {
-        const product = await Products.findById(item.product)
-        if (product) {
-          product.quantity -= item.quantity
-          product.sold += item.quantity
-          await product.save()
-        }
-      }
 
       await Revenues.findOneAndUpdate(
         { year, month },

@@ -488,6 +488,24 @@ export const editUserByAdminController = async (req, res) => {
     if (!id) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: USER_MESSAGE.USER_NOT_FOUND })
     }
+
+    if (email === 'admin@gmail.com') {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({
+        message: 'Cập nhật thông tin cho email admin@gmail.com không được phép.'
+      })
+    }
+
+    const user = await Users.findById({ _id: id })
+    if (email && email !== user.email) {
+      const existingUser = await Users.findOne({ email: email })
+      if (existingUser) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          message: USER_MESSAGE.EMAIL_ALREADY_EXISTS
+        })
+      }
+      user.email = email
+    }
+
     const result = await Users.findByIdAndUpdate(
       { _id: id },
       { email, address, phone, role, full_name },
