@@ -7,7 +7,7 @@
   },
   "scripts": {
     "lint": "eslint src --ext js --report-unused-disable-directives --max-warnings 0",
-    "clean": "rm -rf build && mkdir build",
+    "clean": "rimraf build && mkdir build",
     "build-babel": "babel ./src -d ./build/src",
     "build": "npm run clean && npm run build-babel",
     "production": "npm run build && node ./build/src/server.js",
@@ -34,6 +34,7 @@
     "nodemailer": "^6.9.13",
     "prettier": "^3.2.5",
     "randombytes": "^2.1.0",
+    "rimraf": "^5.0.7",
     "sharp": "^0.33.2",
     "slugify": "^1.6.6",
     "socket.io": "^4.7.5",
