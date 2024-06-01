@@ -43,12 +43,7 @@ io.on('connection', (socket) => {
 })
 
 app.use(express.json())
-app.use(
-  cors({
-    origin: 'http://localhost:3001',
-    credentials: true
-  })
-)
+app.use(cors())
 app.use(express.urlencoded({ extended: true }))
 
 app.use('/user', routerUsers)

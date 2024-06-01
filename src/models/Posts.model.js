@@ -1,10 +1,10 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model } from 'mongoose'
 
 const postSchema = new Schema(
   {
     title: {
       type: String,
-      required: true,
+      required: true
     },
     slug: {
       type: String,
@@ -14,7 +14,7 @@ const postSchema = new Schema(
     },
     content: {
       type: String,
-      required: true,
+      required: true
     },
     thumbnail: {
       url: String,
@@ -23,18 +23,20 @@ const postSchema = new Schema(
     author: {
       type: Schema.Types.ObjectId,
       ref: 'Users',
-      required: true,
+      required: true
     },
     topic: {
       type: Schema.Types.ObjectId,
       ref: 'Topics',
-      required: true,
+      required: true
     },
-    comment: [{
-      type: Schema.Types.ObjectId,
-      ref: 'Comments',
-      required: true,
-    }],
+    comment: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Comments',
+        required: true
+      }
+    ]
     // like: {
     //   type: Schema.Types.ObjectId,
     //   ref: 'Likes',
@@ -42,10 +44,10 @@ const postSchema = new Schema(
     // },
   },
   {
-    timestamps: true,
+    timestamps: true
   }
-);
+)
 
-const Post = model('Post', postSchema);
+const Post = model('Post', postSchema)
 
-export default Post;
+export default Post
