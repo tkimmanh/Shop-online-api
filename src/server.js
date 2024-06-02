@@ -24,9 +24,7 @@ const httpServer = createServer(app)
 const userSockets = new Map() // tạo một map để lưu trữ thông tin của user và socketId
 
 const io = new Server(httpServer, {
-  cors: {
-    origin: 'shop-online-client.vercel.app'
-  }
+  cors: {}
 })
 
 app.set('io', io) // lưu trữ biến io vào trong app để sử dụng ở những file khác
@@ -43,11 +41,7 @@ io.on('connection', (socket) => {
 })
 
 app.use(express.json())
-app.use(
-  cors({
-    origin: 'shop-online-client.vercel.app'
-  })
-)
+app.use(cors({}))
 app.use(express.urlencoded({ extended: true }))
 
 app.use('/user', routerUsers)
