@@ -159,7 +159,7 @@ export const oauthGoogleController = async (req, res) => {
       secret_code: process.env.SECRET_KEY_USER,
       expiresIn: '1d'
     })
-    const redirectUrl = `${process.env.CLIEN_REDIRECT_URL}?access_token=${access_token}&is_login=${true}`
+    const redirectUrl = `shop-online-client-git-main-tkimmanhs-projects.vercel.app?access_token=${access_token}&is_login=${true}`
     return res.redirect(redirectUrl)
   } catch (error) {
     console.error(error)
