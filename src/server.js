@@ -11,8 +11,7 @@ import routerColors from './routes/colors.routes'
 import routerUsers from './routes/users.routes'
 import routerOrder from './routes/orders.routes'
 import couponRouter from '~/routes/coupons.routes'
-import routerTopics from './routes/topics.routes'
-import routerPosts from './routes/posts.routes'
+
 import routerComments from './routes/comments.routes'
 import notificationRouter from './routes/notification.routes'
 import routerBill from './routes/bill.routes'
@@ -51,8 +50,6 @@ app.use('/sizes', routerSizes)
 app.use('/colors', routerColors)
 app.use('/order', routerOrder)
 app.use('/coupon', couponRouter)
-app.use('/topics', routerTopics)
-app.use('/posts', routerPosts)
 app.use('/bill', routerBill)
 app.use('/notify', notificationRouter)
 app.use('/comments', routerComments)
