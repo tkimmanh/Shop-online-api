@@ -12,7 +12,6 @@ import routerUsers from './routes/users.routes'
 import routerOrder from './routes/orders.routes'
 import couponRouter from '~/routes/coupons.routes'
 
-import routerComments from './routes/comments.routes'
 import notificationRouter from './routes/notification.routes'
 import routerBill from './routes/bill.routes'
 
@@ -52,7 +51,6 @@ app.use('/order', routerOrder)
 app.use('/coupon', couponRouter)
 app.use('/bill', routerBill)
 app.use('/notify', notificationRouter)
-app.use('/comments', routerComments)
 
 httpServer.listen(process.env.LOCAL_PORT, () => {
   console.log(`Server is running on PORT ${process.env.LOCAL_PORT}`)
