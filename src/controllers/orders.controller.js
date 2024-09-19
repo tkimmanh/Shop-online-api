@@ -162,7 +162,7 @@ export const placeOrderController = async (req, res) => {
         tmnCode: '8F1UD35C',
         secureSecret: 'KLWBJBXARMRZQIMXBFFNSZUHJLNHRDWK'
       })
-      const returnUrl = `https://shop-online-client.vercel.app/payment-success`
+      const returnUrl = `${process.env.CLIEN_REDIRECT_URL}/payment-success`
       const urlString = vnpay.buildPaymentUrl({
         vnp_Amount: totalPrice,
         vnp_IpAddr: '1.1.1.1',
