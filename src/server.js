@@ -23,7 +23,7 @@ const userSockets = new Map() // tạo một map để lưu trữ thông tin c�
 
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:3001'
+    origin: process.env.CLIEN_REDIRECT_URL
   }
 })
 
@@ -41,12 +41,6 @@ io.on('connection', (socket) => {
 })
 
 app.use(express.json())
-app.use(
-  cors({
-    origin: 'http://localhost:3001',
-    credentials: true
-  })
-)
 app.use(express.urlencoded({ extended: true }))
 
 const corsOptions = {
