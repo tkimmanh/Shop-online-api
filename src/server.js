@@ -1,4 +1,4 @@
-const express = require('express')
+import express from 'express'
 import { config } from 'dotenv'
 import cors from 'cors'
 import { Server } from 'socket.io'
@@ -25,7 +25,7 @@ const userSockets = new Map() // tạo một map để lưu trữ thông tin c�
 
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:3001'
+    origin: process.env.CLIEN_REDIRECT_URL
   }
 })
 
@@ -43,13 +43,22 @@ io.on('connection', (socket) => {
 })
 
 app.use(express.json())
-app.use(
-  cors({
-    origin: 'http://localhost:3001',
-    credentials: true
-  })
-)
+
 app.use(express.urlencoded({ extended: true }))
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (origin === process.env.CLIEN_REDIRECT_URL.trim().replace(/\/$/, '')) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  credentials: true
+}
+
+app.use(cors(corsOptions))
 
 app.use('/user', routerUsers)
 app.use('/products', routerProducts)
@@ -64,6 +73,6 @@ app.use('/bill', routerBill)
 app.use('/notify', notificationRouter)
 app.use('/comments', routerComments)
 
-httpServer.listen(process.env.LOCAL_PORT, () => {
+httpServer.listen(process.env.LOCAL_PORT || 8002, () => {
   console.log(`Server is running on PORT ${process.env.LOCAL_PORT}`)
 })
