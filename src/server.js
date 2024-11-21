@@ -11,9 +11,7 @@ import routerColors from './routes/colors.routes'
 import routerUsers from './routes/users.routes'
 import routerOrder from './routes/orders.routes'
 import couponRouter from '~/routes/coupons.routes'
-import routerTopics from './routes/topics.routes'
-import routerPosts from './routes/posts.routes'
-import routerComments from './routes/comments.routes'
+
 import notificationRouter from './routes/notification.routes'
 import routerBill from './routes/bill.routes'
 
@@ -25,7 +23,7 @@ const userSockets = new Map() // tạo một map để lưu trữ thông tin c�
 
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIEN_REDIRECT_URL
+    origin: 'http://localhost:3001'
   }
 })
 
@@ -43,7 +41,12 @@ io.on('connection', (socket) => {
 })
 
 app.use(express.json())
-
+app.use(
+  cors({
+    origin: 'http://localhost:3001',
+    credentials: true
+  })
+)
 app.use(express.urlencoded({ extended: true }))
 
 const corsOptions = {
@@ -67,11 +70,8 @@ app.use('/sizes', routerSizes)
 app.use('/colors', routerColors)
 app.use('/order', routerOrder)
 app.use('/coupon', couponRouter)
-app.use('/topics', routerTopics)
-app.use('/posts', routerPosts)
 app.use('/bill', routerBill)
 app.use('/notify', notificationRouter)
-app.use('/comments', routerComments)
 
 httpServer.listen(process.env.LOCAL_PORT || 8002, () => {
   console.log(`Server is running on PORT ${process.env.LOCAL_PORT}`)
